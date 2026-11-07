@@ -11,7 +11,12 @@ struct TezeuApp: App {
         MenuBarExtra {
             MenuView(state: state)
         } label: {
-            Image(systemName: state.status.symbol)
+            // Au repos : les lèvres de l'icône. Pendant le travail ou en cas d'erreur : un symbole d'état.
+            if state.status == .ready, let icon = MenuBarIcon.image {
+                Image(nsImage: icon)
+            } else {
+                Image(systemName: state.status.symbol)
+            }
         }
         .menuBarExtraStyle(.window)
     }
@@ -32,11 +37,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+/// Icône de la barre de menus au repos : lèvres en noir et blanc, adaptées au mode clair ou sombre.
+@MainActor
+enum MenuBarIcon {
+    static let image: NSImage? = {
+        guard let url = Bundle.main.url(forResource: "MenuBarIcon", withExtension: "svg"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        image.size = NSSize(width: 22, height: 13)
+        image.isTemplate = true
+        return image
+    }()
+}
+
+/// Panneau court de la barre de menus. Les réglages sont dans la fenêtre de l'app.
 struct MenuView: View {
     let state: AppState
 
     var body: some View {
-        let p = state.permissions
         VStack(alignment: .leading, spacing: 12) {
             Label(state.status.label, systemImage: state.status.symbol)
                 .font(.headline)
@@ -46,48 +63,20 @@ struct MenuView: View {
             if let text = state.lastTranscript, !text.isEmpty {
                 Text(text).textSelection(.enabled).lineLimit(6)
             }
+            Text(L("Maintiens %@ pour dicter, ou appuie deux fois.", state.hotKey.label))
+                .font(.caption).foregroundStyle(.secondary)
 
-            Picker(L("Touche"), selection: Binding(get: { state.hotKey }, set: { state.hotKey = $0 })) {
-                ForEach(HotKey.allCases) { Text($0.label).tag($0) }
-            }
             Picker(L("Langue"), selection: Binding(get: { state.language }, set: { state.language = $0 })) {
                 ForEach(Language.allCases) { Text($0.label).tag($0) }
             }
 
             Divider()
-            ModelSection(state: state)
-
-            Divider()
-            Text(L("Autorisations")).font(.subheadline.bold())
-
-            PermissionRow(
-                title: L("Micro"),
-                detail: p.hasMicDevice ? L("Pour entendre ta voix.") : L("Branche un micro."),
-                granted: p.hasMicDevice && p.mic == .authorized,
-                action: p.hasMicDevice ? { p.requestMic() } : nil
-            )
-            PermissionRow(
-                title: L("Accessibilité"),
-                detail: L("Pour la touche et le collage."),
-                granted: p.accessibility,
-                action: { p.requestAccessibility() }
-            )
-
-            Divider()
-            Toggle(L("Lancer à l'ouverture de session"), isOn: Binding(
-                get: { state.launchAtLogin }, set: { state.setLaunchAtLogin($0) }
-            ))
-            if let note = state.launchAtLoginNote {
-                Text(note).font(.caption).foregroundStyle(.secondary)
-            }
+            Button(L("Ouvrir Tézeu…")) { MainWindow.shared.show(state: state) }
             Button(L("Quitter Tézeu")) { state.quit() }
         }
         .padding()
         .frame(width: 300)
-        .onAppear {
-            p.refresh()
-            state.refreshLaunchAtLogin()
-        }
+        .onAppear { state.permissions.refresh() }
     }
 }
 

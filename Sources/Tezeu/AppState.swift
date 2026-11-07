@@ -10,10 +10,22 @@ final class AppState {
     /// Volume moyen (RMS) sous lequel on considère l'enregistrement comme du silence.
     /// ponytail: seuil fixe (~ -50 dBFS) ; à rendre réglable si un micro très faible est rejeté.
     static let silenceRMS: Float = 0.003
+    /// Durée maximale d'une écoute : évite de laisser le micro ouvert par oubli (mode double appui).
+    static let maximumSeconds = 300.0
+    /// Nombre de dictées gardées dans l'historique (en mémoire seulement).
+    static let historyLimit = 50
 
     let permissions = Permissions()
     /// État de travail (écoute, transcription…). Les problèmes d'autorisation passent avant.
-    var activity: AppStatus = .ready
+    var activity: AppStatus = .ready {
+        didSet { pill.update(activity == .listening || activity == .transcribing ? self : nil) }
+    }
+    /// Niveau sonore du micro pendant l'écoute, pour la pastille.
+    private(set) var level: Float = 0
+    /// Écoute lancée par double appui : elle continue sans tenir la touche.
+    private(set) var handsFree = false
+    /// Dernières dictées, les plus récentes en premier. En mémoire seulement : effacées à la fermeture.
+    var history: [HistoryEntry] = []
     /// Résumé du dernier appui.
     var lastResult: String?
     /// Dernier texte transcrit, gardé en mémoire seulement, pour l'afficher dans le panneau.
@@ -31,6 +43,24 @@ final class AppState {
     var model: WhisperModel {
         didSet { UserDefaults.standard.set(model.id, forKey: "model") }
     }
+    /// UID du micro choisi, ou nil pour le micro par défaut du Mac.
+    var microphone: String? {
+        didSet { UserDefaults.standard.set(microphone, forKey: "microphone") }
+    }
+    var soundsEnabled: Bool {
+        didSet { UserDefaults.standard.set(soundsEnabled, forKey: "sounds") }
+    }
+    var showPill: Bool {
+        didSet { UserDefaults.standard.set(showPill, forKey: "pill") }
+    }
+    /// Mots à mieux reconnaître, séparés par des virgules ou des retours à la ligne.
+    var vocabulary: String {
+        didSet { UserDefaults.standard.set(vocabulary, forKey: "vocabulary") }
+    }
+    /// Remplacements après la transcription, un par ligne : « mot = remplacement ».
+    var replacements: String {
+        didSet { UserDefaults.standard.set(replacements, forKey: "replacements") }
+    }
     /// Identifiants des modèles présents sur le disque.
     private(set) var installedModels: Set<String> = []
     private(set) var downloadProgress: Double?
@@ -41,6 +71,7 @@ final class AppState {
 
     @ObservationIgnored private var monitor: HotKeyMonitor?
     @ObservationIgnored private let recorder = Recorder()
+    @ObservationIgnored private let pill = ListeningPill()
     // Partagé avec AppDelegate, qui le libère avant de quitter.
     static let transcriber = Transcriber()
 
@@ -56,6 +87,11 @@ final class AppState {
         hotKey = savedKey
         language = defaults.string(forKey: "language").flatMap(Language.init(rawValue:)) ?? .systemDefault
         model = WhisperModel.all.first { $0.id == defaults.string(forKey: "model") } ?? .default
+        microphone = defaults.string(forKey: "microphone")
+        soundsEnabled = defaults.object(forKey: "sounds") as? Bool ?? true
+        showPill = defaults.object(forKey: "pill") as? Bool ?? true
+        vocabulary = defaults.string(forKey: "vocabulary") ?? ""
+        replacements = defaults.string(forKey: "replacements") ?? ""
         refreshInstalledModels()
 
         // La détection de touche doit démarrer APRÈS le lancement de l'app : installée plus tôt
@@ -77,12 +113,12 @@ final class AppState {
 
     private func startMonitoring() {
         let monitor = HotKeyMonitor(key: hotKey)
-        monitor.onPress = { [weak self] in self?.keyPressed() }
-        monitor.onRelease = { [weak self] cancelled in self?.keyReleased(cancelled: cancelled) }
+        monitor.onAction = { [weak self] action in self?.handle(action) }
         self.monitor = monitor
+        // Premier lancement, ou autorisation perdue : on ouvre la fenêtre pour guider.
+        if case .error = status { MainWindow.shared.show(state: self) }
     }
 
-    /// Libère whisper.cpp puis ferme l'app (sinon whisper plante à la fermeture).
     func refreshLaunchAtLogin() {
         let status = SMAppService.mainApp.status
         launchAtLogin = status == .enabled || status == .requiresApproval
@@ -108,6 +144,7 @@ final class AppState {
         }
     }
 
+    /// Libère whisper.cpp puis ferme l'app (sinon whisper plante à la fermeture).
     func quit() {
         Task {
             await Self.transcriber.unload()
@@ -140,46 +177,86 @@ final class AppState {
         installedModels = Set(WhisperModel.all.filter(\.isInstalled).map(\.id))
     }
 
-    private func keyPressed() {
-        // Une erreur de dictée précédente n'empêche pas de réessayer ; un problème d'autorisation ou de modèle, si.
-        guard permissions.problem == nil, installedModels.contains(model.id),
-              activity != .listening, activity != .transcribing else { return }
-        do {
-            try recorder.start()
-            activity = .listening
-        } catch {
-            activity = .error(L("Micro indisponible"))
+    private func handle(_ action: DictationGesture.Action) {
+        switch action {
+        case .none: break
+        case .start: startListening()
+        case .stop: finishListening(cancel: nil)
+        case .cancel(let reason): finishListening(cancel: reason)
         }
     }
 
-    private func keyReleased(cancelled: Bool) {
+    private func startListening() {
+        // Une erreur de dictée précédente n'empêche pas de réessayer ; un problème d'autorisation ou de modèle, si.
+        guard permissions.problem == nil, installedModels.contains(model.id),
+              activity != .listening, activity != .transcribing else {
+            monitor?.reset()
+            return
+        }
+        do {
+            try recorder.start(deviceID: microphone)
+        } catch {
+            monitor?.reset()
+            activity = .error(L("Micro indisponible"))
+            return
+        }
+        handsFree = monitor?.isHandsFree ?? false
+        level = 0
+        activity = .listening
+        if soundsEnabled { NSSound(named: "Tink")?.play() }
+
+        // Niveau du micro pour la pastille, et arrêt automatique au bout de la durée maximale.
+        Task { [weak self] in
+            let started = Date()
+            while let self, self.activity == .listening {
+                self.level = self.recorder.level
+                if Date().timeIntervalSince(started) > Self.maximumSeconds {
+                    self.monitor?.reset()
+                    self.finishListening(cancel: nil)
+                    break
+                }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
+    }
+
+    private func finishListening(cancel: DictationGesture.Cancel?) {
         guard activity == .listening else { return }
         var samples = recorder.stop()
         let seconds = Double(samples.count) / Transcriber.sampleRate
         let rms = samples.isEmpty ? 0 : (samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count)).squareRoot()
 
-        if cancelled || seconds < Self.minimumSeconds || rms < Self.silenceRMS {
+        if cancel != nil || seconds < Self.minimumSeconds || rms < Self.silenceRMS {
             samples.removeAll() // rien à transcrire : l'audio est effacé tout de suite
             activity = .ready
-            lastResult = cancelled ? L("Annulé : une autre touche a été pressée")
-                : seconds < Self.minimumSeconds ? L("Trop court, ignoré")
-                : L("Rien entendu (silence)")
+            lastResult = switch cancel {
+            case .tap: L("Appui bref. Pour dicter sans tenir la touche, appuie deux fois.")
+            case .otherKey: L("Annulé : une autre touche a été pressée")
+            case .escape: L("Annulé avec Échap")
+            case nil: seconds < Self.minimumSeconds ? L("Trop court, ignoré") : L("Rien entendu (silence)")
+            }
             return
         }
 
+        if soundsEnabled { NSSound(named: "Pop")?.play() }
         activity = .transcribing
         let model = model, language = language
+        let prompt = Vocabulary.prompt(words: vocabulary), rules = Vocabulary.replacements(replacements)
         Task {
             do {
-                let text = try await Self.transcriber.transcribe(samples, modelURL: model.localURL, language: language)
+                let raw = try await Self.transcriber.transcribe(samples, modelURL: model.localURL, language: language, prompt: prompt)
                 samples.removeAll() // l'audio n'est plus nécessaire
+                let text = Vocabulary.apply(rules, to: raw).trimmingCharacters(in: .whitespacesAndNewlines)
                 lastTranscript = text
                 guard !text.isEmpty else {
                     lastResult = L("Rien reconnu")
                     activity = .ready
                     return
                 }
-                switch await Paster.paste(text) {
+                let outcome = await Paster.paste(text)
+                history.insert(HistoryEntry(text: text, pasted: outcome == .pasted), at: 0)
+                history = Array(history.prefix(Self.historyLimit))
+                switch outcome {
                 case .pasted:
                     lastResult = L("Collé (%.1f s d'audio)", seconds)
                     activity = .ready
@@ -194,4 +271,13 @@ final class AppState {
             }
         }
     }
+}
+
+/// Une dictée de l'historique.
+struct HistoryEntry: Identifiable {
+    let id = UUID()
+    let date = Date()
+    let text: String
+    /// Faux si le texte n'a pas pu être collé (gardé dans le presse-papiers).
+    let pasted: Bool
 }

@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreAudio
 import TezeuCore
 
 enum RecorderError: Error {
@@ -13,9 +14,24 @@ final class Recorder {
     private var engine: AVAudioEngine?
     private var capture: Capture?
 
-    func start() throws {
+    /// Micros disponibles : identifiant (UID Core Audio) et nom.
+    static func microphones() -> [(id: String, name: String)] {
+        AVCaptureDevice.DiscoverySession(deviceTypes: [.microphone, .external], mediaType: .audio, position: .unspecified)
+            .devices.map { ($0.uniqueID, $0.localizedName) }
+    }
+
+    /// Niveau sonore actuel (RMS du dernier bloc), pour la pastille d'écoute.
+    var level: Float { capture?.level ?? 0 }
+
+    /// `deviceID` : UID du micro choisi, ou nil pour le micro par défaut du Mac.
+    /// Si ce micro n'est plus branché, le micro par défaut est utilisé.
+    func start(deviceID: String?) throws {
         let engine = AVAudioEngine()
         let input = engine.inputNode
+        if let deviceID, var device = Self.audioDevice(uid: deviceID), let unit = input.audioUnit {
+            AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                 &device, UInt32(MemoryLayout<AudioDeviceID>.size))
+        }
         let inFormat = input.outputFormat(forBus: 0)
         guard inFormat.sampleRate > 0, inFormat.channelCount > 0,
               let outFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: Transcriber.sampleRate,
@@ -39,6 +55,20 @@ final class Recorder {
         defer { capture = nil }
         return capture?.take() ?? []
     }
+
+    private static func audioDevice(uid: String) -> AudioDeviceID? {
+        var cfUID = uid as CFString
+        var device = AudioDeviceID(kAudioObjectUnknown)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        var address = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyTranslateUIDToDevice,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        let status = withUnsafePointer(to: &cfUID) {
+            AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &address,
+                                       UInt32(MemoryLayout<CFString>.size), $0, &size, &device)
+        }
+        return status == noErr && device != kAudioObjectUnknown ? device : nil
+    }
 }
 
 /// Reçoit l'audio sur le fil du micro, le convertit et l'accumule. Protégé par un verrou.
@@ -47,6 +77,9 @@ private final class Capture: @unchecked Sendable {
     private let outFormat: AVAudioFormat
     private let lock = NSLock()
     private var samples: [Float] = []
+    private var lastLevel: Float = 0
+
+    var level: Float { lock.withLock { lastLevel } }
 
     init(converter: AVAudioConverter, outFormat: AVAudioFormat) {
         self.converter = converter
@@ -82,7 +115,9 @@ private final class Capture: @unchecked Sendable {
                 return input
             }
             if error == nil, let channel = output.floatChannelData {
-                samples.append(contentsOf: UnsafeBufferPointer(start: channel[0], count: Int(output.frameLength)))
+                let block = UnsafeBufferPointer(start: channel[0], count: Int(output.frameLength))
+                samples.append(contentsOf: block)
+                lastLevel = block.isEmpty ? 0 : (block.reduce(0) { $0 + $1 * $1 } / Float(block.count)).squareRoot()
             }
         }
     }

@@ -55,3 +55,41 @@
 /* Ouverture de session */
 "Lancer à l'ouverture de session" = "Launch at login";
 "À autoriser dans Réglages Système > Général > Ouverture." = "Allow it in System Settings > General > Login Items.";
+
+/* Double appui, Échap */
+"Annulé avec Échap" = "Cancelled with Esc";
+"Appui bref. Pour dicter sans tenir la touche, appuie deux fois." = "Short press. To dictate without holding the key, press it twice.";
+"Appuie sur la touche pour finir · Échap annule" = "Press the key to finish · Esc cancels";
+"Maintiens %@ pour dicter, ou appuie deux fois." = "Hold %@ to dictate, or press it twice.";
+"Ouvrir Tézeu…" = "Open Tézeu…";
+
+/* Fenêtre : historique */
+"Historique" = "History";
+"Gardé en mémoire seulement : effacé quand tu quittes Tézeu." = "Kept in memory only: erased when you quit Tézeu.";
+"Tout effacer" = "Clear all";
+"Aucune dictée pour l'instant." = "No dictation yet.";
+"non collé" = "not pasted";
+"Copier" = "Copy";
+
+/* Fenêtre : réglages */
+"Réglages" = "Settings";
+"Dictée" = "Dictation";
+"Maintiens la touche pendant que tu parles. Ou appuie deux fois : l'écoute continue sans tenir la touche, un appui de plus l'arrête. Échap annule." = "Hold the key while you speak. Or press it twice: listening continues without holding the key, one more press stops it. Esc cancels.";
+"Micro par défaut du Mac" = "Mac's default microphone";
+"Sons au début et à la fin de l'écoute" = "Sounds when listening starts and ends";
+"Pastille en haut de l'écran pendant l'écoute" = "Badge at the top of the screen while listening";
+"Modèle vocal" = "Speech model";
+"Vocabulaire" = "Vocabulary";
+"Mots à reconnaître" = "Words to recognize";
+"Noms propres, jargon… séparés par des virgules." = "Names, jargon… separated by commas.";
+"Remplacements" = "Replacements";
+"Un par ligne : mot = remplacement. Exemple : tezeu = Tézeu. Laisser vide après « = » supprime le mot." = "One per line: word = replacement. Example: tezeu = Tézeu. Leaving it empty after \"=\" removes the word.";
+
+/* Fenêtre : à propos */
+"À propos" = "About";
+"Version %@" = "Version %@";
+"Dictée 100 % locale. Ta voix et ton texte restent sur ton Mac." = "100% local dictation. Your voice and your text stay on your Mac.";
+"Crédits" = "Credits";
+"Reconnaissance vocale, par Georgi Gerganov et ses contributeurs. Licence MIT." = "Speech recognition, by Georgi Gerganov and contributors. MIT licence.";
+"Modèles vocaux, par OpenAI. Licence MIT." = "Speech models, by OpenAI. MIT licence.";
+"Par Constantin Boulanger. Licence MIT. Code source :" = "By Constantin Boulanger. MIT licence. Source code:";

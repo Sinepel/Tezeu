@@ -1,5 +1,5 @@
 // Programme de vérification de Tézeu.
-//   swift run -c release SelfCheck transcribe <fichier audio> [--auto] [--model <chemin .bin>]
+//   swift run -c release SelfCheck transcribe <fichier audio> [--auto] [--model <chemin .bin>] [--words "mot1, mot2"]
 // Transcrit un fichier audio avec le même code que l'app. Utile pour tester sans micro.
 import AppKit
 import AVFoundation
@@ -56,12 +56,16 @@ func transcribeCommand(_ args: [String]) async throws {
         fail("Aucun modèle installé. Télécharge-le depuis l'app, ou passe --model <chemin>.")
     }
 
+    var words = ""
+    if let i = args.firstIndex(of: "--words"), i + 1 < args.count { words = args[i + 1] }
+
     let samples = try loadAudio(URL(filePath: path))
     print("Audio : \(String(format: "%.1f", Double(samples.count) / Transcriber.sampleRate)) s")
     print("Modèle : \(modelURL.lastPathComponent), langue : \(language.label)")
     let start = Date()
     let transcriber = Transcriber()
-    let text = try await transcriber.transcribe(samples, modelURL: modelURL, language: language)
+    let text = try await transcriber.transcribe(samples, modelURL: modelURL, language: language,
+                                                prompt: Vocabulary.prompt(words: words))
     await transcriber.unload()
     print("Durée de transcription : \(String(format: "%.1f", Date().timeIntervalSince(start))) s")
     print("Texte : \(text)")
@@ -127,17 +131,65 @@ func localizationCheck() {
     print("OK  \(keys.count) textes, tous traduits en anglais")
 }
 
+/// Vérifie le maintien de la touche, le double appui, Échap et les autres touches.
+func gestureCheck() {
+    typealias G = DictationGesture
+    // Maintien : début à l'appui, fin au relâchement.
+    var g = G()
+    check(g.press(at: 0) == .start && g.release(at: 2, otherKey: false) == .stop, "maintien")
+    // Raccourci clavier pendant l'appui : annulé.
+    check(g.press(at: 10) == .start && g.release(at: 11, otherKey: true) == .cancel(.otherKey), "autre touche")
+    // Double appui : l'écoute continue après le second relâchement, un appui de plus l'arrête.
+    g = G()
+    check(g.press(at: 0) == .start && g.release(at: 0.1, otherKey: false) == .cancel(.tap), "premier appui bref")
+    check(g.press(at: 0.3) == .start && g.isHandsFree, "second appui")
+    check(g.release(at: 0.4, otherKey: false) == .none && g.isHandsFree, "mains libres")
+    check(g.press(at: 20) == .stop && !g.isHandsFree, "appui d'arrêt")
+    check(g.release(at: 20.1, otherKey: false) == .none, "relâchement après l'arrêt")
+    // Après l'arrêt, un appui bref isolé ne relance pas le mode mains libres.
+    check(g.press(at: 30) == .start && g.release(at: 30.1, otherKey: false) == .cancel(.tap), "appui bref isolé")
+    check(g.press(at: 31) == .start && !g.isHandsFree, "second appui trop tard = maintien")
+    check(g.release(at: 32, otherKey: false) == .stop, "maintien après délai")
+    // Second appui long : traité comme un maintien.
+    g = G()
+    _ = g.press(at: 0); _ = g.release(at: 0.1, otherKey: false)
+    check(g.press(at: 0.3) == .start && g.release(at: 2, otherKey: false) == .stop, "second appui long")
+    // Échap annule l'écoute mains libres.
+    g = G()
+    _ = g.press(at: 0); _ = g.release(at: 0.1, otherKey: false); _ = g.press(at: 0.2); _ = g.release(at: 0.3, otherKey: false)
+    check(g.escape() == .cancel(.escape) && g.press(at: 5) == .start, "Échap")
+    // Remise à zéro (durée maximale) : le relâchement suivant est ignoré.
+    g = G()
+    _ = g.press(at: 0); g.reset()
+    check(g.release(at: 400, otherKey: false) == .none, "remise à zéro")
+    print("OK  maintien, double appui, Échap et autres touches")
+}
+
+/// Vérifie le vocabulaire donné au modèle et les remplacements.
+func vocabularyCheck() {
+    check(Vocabulary.prompt(words: " Tézeu, Sinepel\n\nwhisper.cpp ,") == "Tézeu, Sinepel, whisper.cpp.", "liste de mots")
+    check(Vocabulary.prompt(words: " , \n") == nil, "liste vide")
+    let rules = Vocabulary.replacements("tezeu = Tézeu\nligne sans signe\n = vide\neuh =\nCB = C. Boulanger $1")
+    check(rules.count == 3, "règles lues : \(rules.count)")
+    check(Vocabulary.apply(rules, to: "J'utilise tezeu et TEZEU, pas tezeux.") == "J'utilise Tézeu et Tézeu, pas tezeux.", "mots entiers")
+    check(Vocabulary.apply(rules, to: "Bon, euh, Euhh") == "Bon, , Euhh", "mot supprimé")
+    check(Vocabulary.apply(rules, to: "Signé CB") == "Signé C. Boulanger $1", "caractères spéciaux")
+    print("OK  vocabulaire et remplacements")
+}
+
 let args = Array(CommandLine.arguments.dropFirst())
 switch args.first {
 case "transcribe":
     try await transcribeCommand(Array(args.dropFirst()))
 case "clipboard", nil:
     clipboardCheck()
+    gestureCheck()
+    vocabularyCheck()
     localizationCheck()
 default:
     print("""
     Usage :
-      swift run -c release SelfCheck                 (vérifie le presse-papiers et les traductions)
-      swift run -c release SelfCheck transcribe <fichier audio> [--auto] [--model <chemin>]
+      swift run -c release SelfCheck                 (presse-papiers, touche, vocabulaire, traductions)
+      swift run -c release SelfCheck transcribe <fichier audio> [--auto] [--model <chemin>] [--words "mot1, mot2"]
     """)
 }

@@ -34,18 +34,23 @@ enum HotKey: String, CaseIterable, Identifiable {
     }
 }
 
-/// Détecte l'appui et le relâchement de la touche choisie, dans toutes les apps.
+/// Détecte la touche choisie dans toutes les apps : maintien, double appui, Échap.
 /// Nécessite l'autorisation Accessibilité.
 @MainActor
 final class HotKeyMonitor {
-    var key: HotKey
-    var onPress: () -> Void = {}
-    /// `cancelled` = une autre touche a été pressée pendant l'appui (ex. un raccourci).
-    var onRelease: (_ cancelled: Bool) -> Void = { _ in }
+    var key: HotKey {
+        didSet { gesture.reset() }
+    }
+    var onAction: (DictationGesture.Action) -> Void = { _ in }
 
+    /// Vrai pendant une écoute lancée par double appui.
+    var isHandsFree: Bool { gesture.isHandsFree }
+
+    private var gesture = DictationGesture()
     private var isDown = false
     private var otherKeyPressed = false
     private var monitors: [Any] = []
+    private static let escapeKeyCode: UInt16 = 53
 
     init(key: HotKey) {
         self.key = key
@@ -61,19 +66,33 @@ final class HotKeyMonitor {
         ].compactMap { $0 }
     }
 
+    /// Oublie l'appui en cours (écoute arrêtée par l'app).
+    func reset() {
+        gesture.reset()
+    }
+
     private func handle(_ event: NSEvent) {
+        if event.type == .keyDown, event.keyCode == Self.escapeKeyCode {
+            emit(gesture.escape())
+            return
+        }
         guard event.type == .flagsChanged, event.keyCode == key.keyCode else {
             if isDown { otherKeyPressed = true }
             return
         }
+        // event.timestamp : secondes depuis le démarrage du Mac.
         let down = event.modifierFlags.rawValue & key.deviceMask != 0
         if down, !isDown {
             isDown = true
             otherKeyPressed = false
-            onPress()
+            emit(gesture.press(at: event.timestamp))
         } else if !down, isDown {
             isDown = false
-            onRelease(otherKeyPressed)
+            emit(gesture.release(at: event.timestamp, otherKey: otherKeyPressed))
         }
+    }
+
+    private func emit(_ action: DictationGesture.Action) {
+        if action != .none { onAction(action) }
     }
 }

@@ -7,7 +7,7 @@ import TezeuCore
 /// Si le collage n'est pas possible, le texte reste dans le presse-papiers.
 @MainActor
 enum Paster {
-    enum Outcome {
+    enum Outcome: Equatable {
         case pasted
         /// Le texte est resté dans le presse-papiers ; le message dit pourquoi.
         case keptInClipboard(String)

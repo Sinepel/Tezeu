@@ -74,28 +74,46 @@ Il faut lancer les scripts dans Terminal.app : macOS demande ton mot de passe da
 
 ## Utilisation
 
-1. Clique sur l'icône de micro dans la barre de menus.
-2. Donne les autorisations Micro et Accessibilité (boutons « Autoriser »).
-3. Clique sur « Télécharger le modèle » (voir plus bas ce qui est téléchargé).
-4. Maintiens **Option droite**, parle, relâche. Le texte est collé dans l'app ouverte.
+Au premier lancement, la fenêtre de Tézeu s'ouvre :
+1. Donne les autorisations Micro et Accessibilité (boutons « Autoriser »).
+2. Clique sur « Télécharger le modèle » (voir plus bas ce qui est téléchargé).
 
-Dans le panneau, tu peux choisir :
-- la touche : Option, Commande ou Contrôle, côté droit ;
-- la langue de dictée : français, anglais, espagnol, allemand, italien, portugais, néerlandais,
-  ou détection automatique (moins fiable sur une phrase courte). Par défaut : la langue du Mac ;
-- le modèle : Équilibré (574 Mo), Léger (190 Mo) ou Très léger (60 Mo), si ton Mac est lent.
+Ensuite, deux façons de dicter :
+- **Maintenir** : maintiens **Option droite**, parle, relâche. Le texte est collé dans l'app ouverte.
+- **Double appui** : appuie deux fois vite sur la touche, parle sans la tenir,
+  puis appuie une fois pour finir. Arrêt automatique au bout de 5 minutes.
 
-Option « Lancer à l'ouverture de session » en bas du panneau. macOS peut demander de l'autoriser
+**Échap** annule l'écoute en cours.
+
+La fenêtre (menu de l'icône > « Ouvrir Tézeu… ») a trois onglets :
+- **Historique** : les 50 dernières dictées, avec un bouton Copier. Gardé en mémoire seulement :
+  rien n'est écrit sur le disque, tout est effacé quand tu quittes l'app.
+- **Réglages** :
+  - touche : Option, Commande ou Contrôle, côté droit ;
+  - langue de dictée : français, anglais, espagnol, allemand, italien, portugais, néerlandais,
+    ou détection automatique (moins fiable sur une phrase courte). Par défaut : la langue du Mac ;
+  - micro : celui du Mac par défaut, ou un autre micro branché ;
+  - sons au début et à la fin de l'écoute, et pastille en haut de l'écran (niveau du micro) ;
+  - modèle : Équilibré (574 Mo), Léger (190 Mo) ou Très léger (60 Mo), si ton Mac est lent ;
+  - vocabulaire : mots à mieux reconnaître (noms propres, jargon), et remplacements
+    (`tezeu = Tézeu`, un par ligne ; rien après `=` supprime le mot) ;
+  - autorisations, et lancement à l'ouverture de session.
+- **À propos** : version, crédits, licences.
+
+Tant que la fenêtre est ouverte, Tézeu apparaît dans le Dock. Fermée, l'app reste dans la barre de menus.
+
+Option « Lancer à l'ouverture de session » dans les réglages. macOS peut demander de l'autoriser
 dans Réglages Système > Général > Ouverture. L'app est lancée depuis son emplacement actuel :
 si elle est sur un disque externe, ce disque doit être branché à l'ouverture de session.
 
 L'interface est en français ou en anglais, selon la langue du Mac.
 
-L'icône montre l'état : micro (prêt), onde (écoute), « … » (transcription), triangle (erreur).
+L'icône montre l'état : lèvres (prêt), onde (écoute), « … » (transcription), triangle (erreur).
 
 Cas particuliers :
-- appui de moins de 0,5 s, ou silence : ignoré, rien n'est collé ;
-- autre touche pressée pendant l'appui (un raccourci) : dictée annulée ;
+- appui bref isolé, appui de moins de 0,5 s, ou silence : ignoré, rien n'est collé ;
+- autre touche pressée pendant l'appui maintenu (un raccourci) : dictée annulée.
+  En mode double appui, les autres touches n'annulent pas : seul Échap annule ;
 - champ de mot de passe, ou aucun champ de texte actif : l'app ne colle pas, garde le texte
   dans le presse-papiers et passe l'icône en erreur « Collage impossible ». Colle-le toi-même avec ⌘V.
 
@@ -118,19 +136,24 @@ Réglages Système > Confidentialité et sécurité > Micro / Accessibilité.
 
 Ensuite, l'app ne se connecte plus à rien : pas de mise à jour automatique, pas de statistiques,
 pas de rapport d'erreurs. L'audio reste en mémoire et est effacé après la transcription.
-Rien n'est écrit dans les journaux sur ce que tu dictes.
+Rien n'est écrit dans les journaux sur ce que tu dictes. L'historique reste en mémoire.
+Seuls les réglages (dont ta liste de mots et de remplacements) sont enregistrés, dans les préférences de l'app.
 
 Tout le code réseau est dans un seul fichier : `Sources/Tezeu/ModelDownloader.swift`.
+Les liens de l'onglet À propos (`Sources/Tezeu/MainWindow.swift`) s'ouvrent dans ton navigateur,
+seulement si tu cliques dessus.
 
 ## Vérifications
 
 ```
-# Tests du presse-papiers (sauvegarde et remise, sur un presse-papiers privé) et des traductions
+# Tests : presse-papiers (sauvegarde et remise, sur un presse-papiers privé), maintien et double appui,
+# vocabulaire et remplacements, traductions
 swift run -c release SelfCheck
 
 # Transcription d'un fichier audio, sans micro
 say -v 'Eddy (Français (France))' -o /tmp/phrase.aiff "Bonjour, ceci est un test."
 swift run -c release SelfCheck transcribe /tmp/phrase.aiff
+swift run -c release SelfCheck transcribe /tmp/phrase.aiff --words "Tézeu, Sinepel"   # avec vocabulaire
 
 # Seul endroit du code qui utilise le réseau
 grep -rnE 'URLSession|URLRequest|NWConnection|import Network|CFSocket|socket\(|https?://' Sources/
@@ -155,6 +178,9 @@ while true; do lsof -nP -i -a -p "$(pgrep -x Tezeu)"; sleep 1; done
 - Sans Xcode, SwiftUI refuse `@State` : l'état de l'app est gardé dans un simple `let`.
 - Le délai avant de remettre l'ancien presse-papiers est fixe (0,4 s). Une app très lente
   pourrait coller l'ancien contenu : il faudrait alors allonger `Paster.restoreDelay`.
+- Double appui : le premier appui bref allume le micro un court instant (et joue le son de début).
+- Le vocabulaire aide le modèle sans garantie : un mot rare peut rester mal reconnu.
+  Les remplacements, eux, s'appliquent toujours.
 - Le seuil de silence est fixe : un micro très faible pourrait être pris pour du silence
   (`AppState.silenceRMS`).
 

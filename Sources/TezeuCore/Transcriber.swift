@@ -36,7 +36,8 @@ public actor Transcriber {
         loadedPath = nil
     }
 
-    public func transcribe(_ samples: [Float], modelURL: URL, language: Language) throws -> String {
+    /// `prompt` : texte qui oriente le modèle vers certains mots (voir `Vocabulary.prompt`).
+    public func transcribe(_ samples: [Float], modelURL: URL, language: Language, prompt: String? = nil) throws -> String {
         let ctx = try load(modelURL.path)
 
         var params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY)
@@ -58,7 +59,10 @@ public actor Transcriber {
 
         let status = language.rawValue.withCString { lang in
             params.language = lang
-            return audio.withUnsafeBufferPointer { whisper_full(ctx, params, $0.baseAddress, Int32($0.count)) }
+            return (prompt ?? "").withCString { promptText in
+                params.initial_prompt = prompt == nil ? nil : promptText
+                return audio.withUnsafeBufferPointer { whisper_full(ctx, params, $0.baseAddress, Int32($0.count)) }
+            }
         }
         guard status == 0 else { throw TranscriberError.failed }
 

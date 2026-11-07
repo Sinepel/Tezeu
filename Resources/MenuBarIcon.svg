@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="44" height="26" viewBox="236 404 552 326">
+  <!-- Icône de la barre de menus : les lèvres de l'icône de l'app, en une seule couleur.
+       macOS la recolore selon le mode clair ou sombre. Les lèvres sont plus écartées
+       que sur l'icône, pour que le trait entre les deux reste visible en petit. -->
+  <path fill="#000" d="
+    M 246 540
+    C 310 466, 386 418, 452 434
+    C 482 441, 500 458, 512 470
+    C 524 458, 542 441, 572 434
+    C 638 418, 714 466, 778 540
+    C 690 552, 600 556, 512 558
+    C 424 556, 334 552, 246 540 Z"/>
+  <path fill="#000" transform="translate(0 26)" d="
+    M 246 540
+    C 334 560, 424 566, 512 568
+    C 600 566, 690 560, 778 540
+    C 728 640, 630 700, 512 704
+    C 394 700, 296 640, 246 540 Z"/>
+</svg>
