@@ -50,6 +50,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$TAG" "$ZIP" "$ZIP.sha256" --clobber
 
+      # Formule Homebrew (Casks/tezeu.rb) : nouvelle version et empreinte, sur main.
+      # Pas pour les pré-versions : la formule pointe seulement vers une version stable.
+      - name: Mise à jour de la formule Homebrew
+        if: github.event_name == 'release' && !github.event.release.prerelease
+        run: |
+          SHA=$(cut -d ' ' -f 1 "$ZIP.sha256")
+          git fetch origin main
+          git checkout -B main origin/main
+          sed -i '' -E "s/^  version \".*\"/  version \"${TAG#v}\"/; s/^  sha256 \".*\"/  sha256 \"$SHA\"/" Casks/tezeu.rb
+          git diff
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Homebrew : Tézeu ${TAG#v}"
+          git push origin main
+
       - name: Artefact (lancement manuel)
         if: github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4

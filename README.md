@@ -18,6 +18,18 @@ App originale. Aucun code, nom, logo ou texte d'une autre app de dictée n'a ét
 
 État : version 0.1, en développement.
 
+## Installer avec Homebrew
+
+```
+brew tap sinepel/tezeu https://github.com/Sinepel/Tezeu
+brew install --cask tezeu
+```
+
+La formule (`Casks/tezeu.rb`) est dans ce dépôt. Elle n'est pas dans le catalogue officiel de Homebrew :
+celui-ci refuse les apps non notarisées par Apple. Elle pointe vers la dernière version stable,
+et la GitHub Action la met à jour à chaque release stable. Mêmes limites que ci-dessous :
+au premier lancement, « Ouvrir quand même », et l'autorisation Accessibilité à redonner après chaque mise à jour.
+
 ## Installer une version compilée
 
 Chaque release publiée sur GitHub contient `Tezeu-vX.Y.Z-macos-arm64.zip`, compilée par une
@@ -74,9 +86,10 @@ Il faut lancer les scripts dans Terminal.app : macOS demande ton mot de passe da
 
 ## Utilisation
 
-Au premier lancement, la fenêtre de Tézeu s'ouvre :
+Au premier lancement, un assistant s'ouvre en 3 étapes :
 1. Donne les autorisations Micro et Accessibilité (boutons « Autoriser »).
 2. Clique sur « Télécharger le modèle » (voir plus bas ce qui est téléchargé).
+3. Fais un essai dans le cadre prévu.
 
 Ensuite, deux façons de dicter :
 - **Maintenir** : maintiens **Option droite**, parle, relâche. Le texte est collé dans l'app ouverte.
@@ -85,16 +98,28 @@ Ensuite, deux façons de dicter :
 
 **Échap** annule l'écoute en cours.
 
-La fenêtre (menu de l'icône > « Ouvrir Tézeu… ») a trois onglets :
+La fenêtre (menu de l'icône > « Ouvrir Tézeu… ») a quatre onglets :
 - **Historique** : les 50 dernières dictées, avec un bouton Copier. Gardé en mémoire seulement :
   rien n'est écrit sur le disque, tout est effacé quand tu quittes l'app.
+- **Fichier** : glisse un fichier audio (wav, m4a, mp3, aiff) pour le transcrire. Tout reste local.
+  Le fichier n'est ni modifié ni copié, le texte reste en mémoire.
 - **Réglages** :
   - touche : Option, Commande ou Contrôle, côté droit ;
   - langue de dictée : français, anglais, espagnol, allemand, italien, portugais, néerlandais,
     ou détection automatique (moins fiable sur une phrase courte). Par défaut : la langue du Mac ;
-  - micro : celui du Mac par défaut, ou un autre micro branché ;
-  - sons au début et à la fin de l'écoute, et pastille en haut de l'écran (niveau du micro) ;
-  - modèle : Équilibré (574 Mo), Léger (190 Mo) ou Très léger (60 Mo), si ton Mac est lent ;
+  - micro : celui du Mac par défaut, ou un autre micro branché. Bouton « Tester le micro »,
+    et seuil de silence réglable (à baisser si un micro faible est pris pour du silence) ;
+  - sons au début et à la fin de l'écoute, et pastille en haut de l'écran (niveau du micro),
+    normale ou compacte ;
+  - commandes vocales : « virgule », « point final », « point d'interrogation », « deux points »,
+    « à la ligne », « nouveau paragraphe » (en anglais : « comma », « new line »…).
+    Ce sont des remplacements fixes, sans IA ;
+  - espace et majuscule automatiques, selon le texte juste avant le curseur (si l'app le donne) ;
+  - insertion : coller (rapide), ou taper le texte (plus lent, sans toucher au presse-papiers,
+    pour les apps qui bloquent ⌘V). Délai de remise du presse-papiers réglable ;
+  - modèle : Équilibré (574 Mo), Léger (190 Mo) ou Très léger (60 Mo), si ton Mac est lent.
+    Option pour le préparer dès le lancement (première dictée plus rapide, environ 800 Mo de mémoire
+    pour Équilibré). Bouton pour supprimer un modèle du disque ;
   - vocabulaire : mots à mieux reconnaître (noms propres, jargon), et remplacements
     (`tezeu = Tézeu`, un par ligne ; rien après `=` supprime le mot) ;
   - autorisations, et lancement à l'ouverture de session.
@@ -137,6 +162,8 @@ Réglages Système > Confidentialité et sécurité > Micro / Accessibilité.
 Ensuite, l'app ne se connecte plus à rien : pas de mise à jour automatique, pas de statistiques,
 pas de rapport d'erreurs. L'audio reste en mémoire et est effacé après la transcription.
 Rien n'est écrit dans les journaux sur ce que tu dictes. L'historique reste en mémoire.
+Pour l'espace et la majuscule automatiques, l'app lit les 40 caractères avant le curseur au moment
+de coller ; ils ne sont ni gardés ni écrits.
 Seuls les réglages (dont ta liste de mots et de remplacements) sont enregistrés, dans les préférences de l'app.
 
 Tout le code réseau est dans un seul fichier : `Sources/Tezeu/ModelDownloader.swift`.
@@ -147,7 +174,7 @@ seulement si tu cliques dessus.
 
 ```
 # Tests : presse-papiers (sauvegarde et remise, sur un presse-papiers privé), maintien et double appui,
-# vocabulaire et remplacements, traductions
+# vocabulaire et remplacements, commandes vocales, espace et majuscule automatiques, traductions
 swift run -c release SelfCheck
 
 # Transcription d'un fichier audio, sans micro
@@ -176,13 +203,16 @@ while true; do lsof -nP -i -a -p "$(pgrep -x Tezeu)"; sleep 1; done
 
 - Sans Xcode, `swift test` ne marche pas : les tests passent par `swift run SelfCheck`.
 - Sans Xcode, SwiftUI refuse `@State` : l'état de l'app est gardé dans un simple `let`.
-- Le délai avant de remettre l'ancien presse-papiers est fixe (0,4 s). Une app très lente
-  pourrait coller l'ancien contenu : il faudrait alors allonger `Paster.restoreDelay`.
+- Commandes vocales : le modèle écrit souvent lui-même « , » ou « ? » quand tu dis « virgule ».
+  « À la ligne » marche mieux avec une petite pause avant et après.
+- Majuscule automatique : au milieu d'une phrase, le premier mot passe en minuscule, sauf sigle
+  ou mot du vocabulaire. Un nom propre hors vocabulaire peut donc perdre sa majuscule.
+- Certaines apps (pages web, apps Electron) ne donnent pas le texte avant le curseur :
+  l'espace et la majuscule automatiques n'y font rien.
+- Fichier : les formats lus par macOS seulement (pas d'Ogg/Opus, comme les notes vocales WhatsApp).
 - Double appui : le premier appui bref allume le micro un court instant (et joue le son de début).
 - Le vocabulaire aide le modèle sans garantie : un mot rare peut rester mal reconnu.
   Les remplacements, eux, s'appliquent toujours.
-- Le seuil de silence est fixe : un micro très faible pourrait être pris pour du silence
-  (`AppState.silenceRMS`).
 
 ## Ajouter une langue
 

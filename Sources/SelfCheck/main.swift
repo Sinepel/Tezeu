@@ -16,34 +16,6 @@ func fail(_ message: String) -> Never {
     exit(1)
 }
 
-/// Lit un fichier audio et le convertit en 16 kHz mono Float32.
-func loadAudio(_ url: URL) throws -> [Float] {
-    let file = try AVAudioFile(forReading: url)
-    guard let outFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: Transcriber.sampleRate,
-                                        channels: 1, interleaved: false),
-          let converter = AVAudioConverter(from: file.processingFormat, to: outFormat),
-          let input = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)),
-          let output = AVAudioPCMBuffer(pcmFormat: outFormat, frameCapacity: AVAudioFrameCount(
-              Double(file.length) * outFormat.sampleRate / file.processingFormat.sampleRate) + 1024)
-    else { fail("Format audio non pris en charge") }
-    try file.read(into: input)
-
-    nonisolated(unsafe) var fed = false
-    var error: NSError?
-    _ = converter.convert(to: output, error: &error) { _, status in
-        if fed {
-            status.pointee = .endOfStream
-            return nil
-        }
-        fed = true
-        status.pointee = .haveData
-        return input
-    }
-    if let error { throw error }
-    guard let channel = output.floatChannelData else { return [] }
-    return Array(UnsafeBufferPointer(start: channel[0], count: Int(output.frameLength)))
-}
-
 func transcribeCommand(_ args: [String]) async throws {
     guard let path = args.first else { fail("Indique un fichier audio.") }
     let language: Language = args.contains("--auto") ? .auto : .french
@@ -59,7 +31,7 @@ func transcribeCommand(_ args: [String]) async throws {
     var words = ""
     if let i = args.firstIndex(of: "--words"), i + 1 < args.count { words = args[i + 1] }
 
-    let samples = try loadAudio(URL(filePath: path))
+    let samples = try AudioFile.samples(from: URL(filePath: path))
     print("Audio : \(String(format: "%.1f", Double(samples.count) / Transcriber.sampleRate)) s")
     print("Modèle : \(modelURL.lastPathComponent), langue : \(language.label)")
     let start = Date()
@@ -69,6 +41,9 @@ func transcribeCommand(_ args: [String]) async throws {
     await transcriber.unload()
     print("Durée de transcription : \(String(format: "%.1f", Date().timeIntervalSince(start))) s")
     print("Texte : \(text)")
+    if VoiceCommands.isSupported(language) {
+        print("Avec commandes vocales : \(VoiceCommands.apply(text, language: language).debugDescription)")
+    }
 }
 
 /// Vérifie la sauvegarde et la remise du presse-papiers, sur un presse-papiers privé
@@ -177,6 +152,34 @@ func vocabularyCheck() {
     print("OK  vocabulaire et remplacements")
 }
 
+/// Vérifie les commandes vocales (« virgule », « à la ligne »…).
+func voiceCommandsCheck() {
+    func fr(_ text: String) -> String { VoiceCommands.apply(text, language: .french) }
+    let nbsp = "\u{00A0}"
+    check(fr("Bonjour virgule comment ça va point d'interrogation") == "Bonjour, comment ça va\(nbsp)?", "virgule et ? : \(fr("Bonjour virgule comment ça va point d'interrogation"))")
+    check(fr("Bonjour, virgule, comment ça va. Point d’interrogation.") == "Bonjour, comment ça va\(nbsp)?", "ponctuation du modèle retirée")
+    check(fr("Liste à la ligne. premier point final deuxième") == "Liste\nPremier. Deuxième", "à la ligne et point final : \(fr("Liste à la ligne. premier point final deuxième"))")
+    check(fr("Fin. Nouveau paragraphe. Suite.") == "Fin\n\nSuite.", "nouveau paragraphe")
+    check(fr("Le point de vue des virgules") == "Le point de vue des virgules", "mots qui ressemblent à des commandes")
+    check(VoiceCommands.apply("Hello comma world question mark", language: .english) == "Hello, world?", "anglais")
+    check(VoiceCommands.apply("Hola virgule", language: .spanish) == "Hola virgule", "langue sans commandes")
+    print("OK  commandes vocales")
+}
+
+/// Vérifie l'espace et la majuscule automatiques selon le texte avant le curseur.
+func autoSpacingCheck() {
+    check(AutoSpacing.fit("Bonjour.", after: nil) == "Bonjour.", "contexte inconnu")
+    check(AutoSpacing.fit("bonjour.", after: "") == "Bonjour.", "début de champ")
+    check(AutoSpacing.fit("Et demain.", after: "Je viens aujourd'hui") == " et demain.", "milieu de phrase")
+    check(AutoSpacing.fit("et demain.", after: "Fini. ") == "Et demain.", "après un point et une espace")
+    check(AutoSpacing.fit("suite", after: "Titre\n") == "Suite", "après un retour à la ligne")
+    check(AutoSpacing.fit("USA et Tézeu", after: "aux") == " USA et Tézeu", "sigle gardé")
+    check(AutoSpacing.fit("Tézeu marche", after: "et", keepCase: ["tézeu"]) == " Tézeu marche", "mot du vocabulaire gardé")
+    check(AutoSpacing.fit(", ensuite", after: "Bon") == ", ensuite", "pas d'espace avant une virgule")
+    check(AutoSpacing.fit("Mot", after: "(") == "mot", "pas d'espace après une parenthèse")
+    print("OK  espace et majuscule automatiques")
+}
+
 let args = Array(CommandLine.arguments.dropFirst())
 switch args.first {
 case "transcribe":
@@ -185,6 +188,8 @@ case "clipboard", nil:
     clipboardCheck()
     gestureCheck()
     vocabularyCheck()
+    voiceCommandsCheck()
+    autoSpacingCheck()
     localizationCheck()
 default:
     print("""

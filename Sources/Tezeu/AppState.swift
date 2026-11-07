@@ -7,9 +7,6 @@ import TezeuCore
 final class AppState {
     /// En dessous de cette durée, l'appui est ignoré (relâché trop vite).
     static let minimumSeconds = 0.5
-    /// Volume moyen (RMS) sous lequel on considère l'enregistrement comme du silence.
-    /// ponytail: seuil fixe (~ -50 dBFS) ; à rendre réglable si un micro très faible est rejeté.
-    static let silenceRMS: Float = 0.003
     /// Durée maximale d'une écoute : évite de laisser le micro ouvert par oubli (mode double appui).
     static let maximumSeconds = 300.0
     /// Nombre de dictées gardées dans l'historique (en mémoire seulement).
@@ -30,6 +27,15 @@ final class AppState {
     var lastResult: String?
     /// Dernier texte transcrit, gardé en mémoire seulement, pour l'afficher dans le panneau.
     var lastTranscript: String?
+    /// Test du micro en cours (réglages) : le niveau s'affiche, rien n'est transcrit.
+    private(set) var micTesting = false
+    /// Transcription d'un fichier audio (onglet Fichier). Le texte reste en mémoire seulement.
+    private(set) var fileName: String?
+    var fileText = ""
+    /// Cadre d'essai de l'assistant de premier lancement.
+    var tryText = ""
+    private(set) var fileBusy = false
+    private(set) var fileError: String?
 
     var hotKey: HotKey {
         didSet {
@@ -41,7 +47,10 @@ final class AppState {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: "language") }
     }
     var model: WhisperModel {
-        didSet { UserDefaults.standard.set(model.id, forKey: "model") }
+        didSet {
+            UserDefaults.standard.set(model.id, forKey: "model")
+            preloadIfNeeded()
+        }
     }
     /// UID du micro choisi, ou nil pour le micro par défaut du Mac.
     var microphone: String? {
@@ -60,6 +69,40 @@ final class AppState {
     /// Remplacements après la transcription, un par ligne : « mot = remplacement ».
     var replacements: String {
         didSet { UserDefaults.standard.set(replacements, forKey: "replacements") }
+    }
+    /// Commandes vocales : « à la ligne », « virgule »… (français et anglais).
+    var voiceCommands: Bool {
+        didSet { UserDefaults.standard.set(voiceCommands, forKey: "voiceCommands") }
+    }
+    /// Espace et majuscule selon le texte avant le curseur.
+    var autoSpacing: Bool {
+        didSet { UserDefaults.standard.set(autoSpacing, forKey: "autoSpacing") }
+    }
+    var insertMethod: InsertMethod {
+        didSet { UserDefaults.standard.set(insertMethod.rawValue, forKey: "insertMethod") }
+    }
+    /// Secondes avant de remettre l'ancien presse-papiers (collage).
+    var restoreDelay: Double {
+        didSet { UserDefaults.standard.set(restoreDelay, forKey: "restoreDelay") }
+    }
+    /// Volume (en dB) sous lequel l'enregistrement est considéré comme du silence.
+    var silenceDB: Double {
+        didSet { UserDefaults.standard.set(silenceDB, forKey: "silenceDB") }
+    }
+    /// Charger le modèle dès le lancement, pour que la première dictée soit rapide.
+    var preloadModel: Bool {
+        didSet {
+            UserDefaults.standard.set(preloadModel, forKey: "preloadModel")
+            preloadIfNeeded()
+        }
+    }
+    /// Pastille réduite aux barres de niveau, sans texte.
+    var compactPill: Bool {
+        didSet { UserDefaults.standard.set(compactPill, forKey: "compactPill") }
+    }
+    /// Assistant de premier lancement terminé.
+    var onboardingDone: Bool {
+        didSet { UserDefaults.standard.set(onboardingDone, forKey: "onboardingDone") }
     }
     /// Identifiants des modèles présents sur le disque.
     private(set) var installedModels: Set<String> = []
@@ -92,6 +135,14 @@ final class AppState {
         showPill = defaults.object(forKey: "pill") as? Bool ?? true
         vocabulary = defaults.string(forKey: "vocabulary") ?? ""
         replacements = defaults.string(forKey: "replacements") ?? ""
+        voiceCommands = defaults.object(forKey: "voiceCommands") as? Bool ?? true
+        autoSpacing = defaults.object(forKey: "autoSpacing") as? Bool ?? true
+        insertMethod = defaults.string(forKey: "insertMethod").flatMap(InsertMethod.init(rawValue:)) ?? .paste
+        restoreDelay = defaults.object(forKey: "restoreDelay") as? Double ?? 0.4
+        silenceDB = defaults.object(forKey: "silenceDB") as? Double ?? -50
+        preloadModel = defaults.object(forKey: "preloadModel") as? Bool ?? true
+        compactPill = defaults.object(forKey: "compactPill") as? Bool ?? false
+        onboardingDone = defaults.bool(forKey: "onboardingDone")
         refreshInstalledModels()
 
         // La détection de touche doit démarrer APRÈS le lancement de l'app : installée plus tôt
@@ -117,6 +168,76 @@ final class AppState {
         self.monitor = monitor
         // Premier lancement, ou autorisation perdue : on ouvre la fenêtre pour guider.
         if case .error = status { MainWindow.shared.show(state: self) }
+        else if !onboardingDone { MainWindow.shared.show(state: self) }
+        preloadIfNeeded()
+    }
+
+    private func preloadIfNeeded() {
+        guard preloadModel, installedModels.contains(model.id) else { return }
+        let url = model.localURL
+        Task { try? await Self.transcriber.preload(modelURL: url) }
+    }
+
+    /// Supprime un modèle du disque.
+    func deleteModel(_ target: WhisperModel) {
+        Task {
+            await Self.transcriber.unload()
+            try? FileManager.default.removeItem(at: target.localURL)
+            refreshInstalledModels()
+            preloadIfNeeded()
+        }
+    }
+
+    /// Lance ou arrête le test du micro : le niveau s'affiche, rien n'est enregistré ni transcrit.
+    func toggleMicTest() {
+        if micTesting {
+            var samples = recorder.stop()
+            samples.removeAll()
+            micTesting = false
+            level = 0
+            return
+        }
+        guard permissions.problem == nil, activity != .listening, activity != .transcribing else { return }
+        do {
+            try recorder.start(deviceID: microphone)
+        } catch {
+            lastResult = L("Micro indisponible")
+            return
+        }
+        micTesting = true
+        Task { [weak self] in
+            let started = Date()
+            while let self, self.micTesting {
+                self.level = self.recorder.level
+                if Date().timeIntervalSince(started) > 20 { self.toggleMicTest() }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
+    }
+
+    /// Transcrit un fichier audio. L'audio et le texte restent en mémoire.
+    func transcribeFile(_ url: URL) {
+        guard !fileBusy, installedModels.contains(model.id) else { return }
+        fileName = url.lastPathComponent
+        fileText = ""
+        fileError = nil
+        fileBusy = true
+        let model = model, language = language
+        let prompt = Vocabulary.prompt(words: vocabulary), rules = Vocabulary.replacements(replacements)
+        Task {
+            do {
+                // Lecture du fichier hors du fil principal : un long fichier prend du temps.
+                var samples = try await Task.detached { try AudioFile.samples(from: url) }.value
+                let raw = try await Self.transcriber.transcribe(samples, modelURL: model.localURL,
+                                                                language: language, prompt: prompt)
+                samples.removeAll()
+                fileText = Vocabulary.apply(rules, to: raw)
+                if fileText.isEmpty { fileError = L("Rien reconnu") }
+            } catch {
+                fileError = error.localizedDescription
+            }
+            fileBusy = false
+        }
     }
 
     func refreshLaunchAtLogin() {
@@ -170,6 +291,7 @@ final class AppState {
             }
             downloadProgress = nil
             refreshInstalledModels()
+            preloadIfNeeded()
         }
     }
 
@@ -188,7 +310,7 @@ final class AppState {
 
     private func startListening() {
         // Une erreur de dictée précédente n'empêche pas de réessayer ; un problème d'autorisation ou de modèle, si.
-        guard permissions.problem == nil, installedModels.contains(model.id),
+        guard permissions.problem == nil, installedModels.contains(model.id), !micTesting,
               activity != .listening, activity != .transcribing else {
             monitor?.reset()
             return
@@ -224,9 +346,10 @@ final class AppState {
         guard activity == .listening else { return }
         var samples = recorder.stop()
         let seconds = Double(samples.count) / Transcriber.sampleRate
+        let silenceRMS = Float(pow(10, silenceDB / 20))
         let rms = samples.isEmpty ? 0 : (samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count)).squareRoot()
 
-        if cancel != nil || seconds < Self.minimumSeconds || rms < Self.silenceRMS {
+        if cancel != nil || seconds < Self.minimumSeconds || rms < silenceRMS {
             samples.removeAll() // rien à transcrire : l'audio est effacé tout de suite
             activity = .ready
             lastResult = switch cancel {
@@ -238,23 +361,36 @@ final class AppState {
             return
         }
 
+        if fileBusy {
+            samples.removeAll()
+            activity = .ready
+            lastResult = L("Un fichier est en cours de transcription. Réessaie après.")
+            return
+        }
+
         if soundsEnabled { NSSound(named: "Pop")?.play() }
         activity = .transcribing
         let model = model, language = language
         let prompt = Vocabulary.prompt(words: vocabulary), rules = Vocabulary.replacements(replacements)
+        let keepCase = Set(Vocabulary.words(vocabulary))
         Task {
             do {
                 let raw = try await Self.transcriber.transcribe(samples, modelURL: model.localURL, language: language, prompt: prompt)
                 samples.removeAll() // l'audio n'est plus nécessaire
-                let text = Vocabulary.apply(rules, to: raw).trimmingCharacters(in: .whitespacesAndNewlines)
+                var text = Vocabulary.apply(rules, to: raw)
+                if voiceCommands { text = VoiceCommands.apply(text, language: language) }
+                text = text.trimmingCharacters(in: .whitespaces)
                 lastTranscript = text
-                guard !text.isEmpty else {
+                guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     lastResult = L("Rien reconnu")
                     activity = .ready
                     return
                 }
-                let outcome = await Paster.paste(text)
-                history.insert(HistoryEntry(text: text, pasted: outcome == .pasted), at: 0)
+                if autoSpacing {
+                    text = AutoSpacing.fit(text, after: Paster.textBeforeCursor(), keepCase: keepCase)
+                }
+                let outcome = await Paster.insert(text, method: insertMethod, restoreDelay: restoreDelay)
+                history.insert(HistoryEntry(text: lastTranscript ?? text, pasted: outcome == .pasted), at: 0)
                 history = Array(history.prefix(Self.historyLimit))
                 switch outcome {
                 case .pasted:

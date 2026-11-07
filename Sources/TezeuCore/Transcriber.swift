@@ -36,6 +36,11 @@ public actor Transcriber {
         loadedPath = nil
     }
 
+    /// Charge le modèle à l'avance, pour que la première dictée soit rapide.
+    public func preload(modelURL: URL) throws {
+        _ = try load(modelURL.path)
+    }
+
     /// `prompt` : texte qui oriente le modèle vers certains mots (voir `Vocabulary.prompt`).
     public func transcribe(_ samples: [Float], modelURL: URL, language: Language, prompt: String? = nil) throws -> String {
         let ctx = try load(modelURL.path)

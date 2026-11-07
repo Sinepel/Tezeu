@@ -93,3 +93,46 @@
 "Reconnaissance vocale, par Georgi Gerganov et ses contributeurs. Licence MIT." = "Speech recognition, by Georgi Gerganov and contributors. MIT licence.";
 "Modèles vocaux, par OpenAI. Licence MIT." = "Speech models, by OpenAI. MIT licence.";
 "Par Constantin Boulanger. Licence MIT. Code source :" = "By Constantin Boulanger. MIT licence. Source code:";
+
+/* Texte : commandes vocales, espace, insertion */
+"Texte" = "Text";
+"Commandes vocales" = "Voice commands";
+"Dis « virgule », « point final », « point d'interrogation », « deux points », « à la ligne », « nouveau paragraphe ». En anglais : « comma », « new line »…" = "Say \"comma\", \"full stop\", \"question mark\", \"colon\", \"new line\", \"new paragraph\". In French: « virgule », « à la ligne »…";
+"Espace et majuscule automatiques" = "Automatic spacing and capitals";
+"Regarde le texte juste avant le curseur, si l'app le permet. Ce texte n'est pas gardé." = "Looks at the text just before the cursor, if the app allows it. This text is not kept.";
+"Insertion" = "Insertion";
+"Coller (rapide)" = "Paste (fast)";
+"Taper le texte (sans presse-papiers)" = "Type the text (no clipboard)";
+"Délai avant de remettre le presse-papiers" = "Delay before restoring the clipboard";
+"%.1f s" = "%.1f s";
+"À allonger si une app colle l'ancien contenu au lieu de ta dictée." = "Increase it if an app pastes the old content instead of your dictation.";
+
+/* Micro : test et seuil */
+"Tester le micro" = "Test microphone";
+"Arrêter le test" = "Stop test";
+"Voix entendue" = "Voice heard";
+"Silence" = "Silence";
+"Seuil de silence" = "Silence threshold";
+"%d dB" = "%d dB";
+"Baisse le seuil si ta voix est prise pour du silence (micro faible). Remonte-le dans un lieu bruyant." = "Lower the threshold if your voice is taken for silence (weak microphone). Raise it in a noisy place.";
+
+/* Modèles, pastille */
+"Préparer le modèle au lancement (première dictée plus rapide)" = "Load the model at launch (faster first dictation)";
+"Supprimer" = "Delete";
+"Pastille compacte (barres seulement)" = "Compact badge (bars only)";
+
+/* Fichier */
+"Fichier" = "File";
+"Choisir un fichier audio…" = "Choose an audio file…";
+"ou glisse-le ici. Formats : wav, m4a, mp3, aiff." = "or drop it here. Formats: wav, m4a, mp3, aiff.";
+"Transcription de %@… Un long fichier peut prendre plusieurs minutes." = "Transcribing %@… A long file can take several minutes.";
+"Le texte reste en mémoire : copie-le avant de quitter." = "The text stays in memory: copy it before quitting.";
+"Format audio non pris en charge" = "Unsupported audio format";
+"Un fichier est en cours de transcription. Réessaie après." = "A file is being transcribed. Try again afterwards.";
+
+/* Premier lancement */
+"Bienvenue dans Tézeu" = "Welcome to Tézeu";
+"Trois étapes, et tu peux dicter partout." = "Three steps, and you can dictate anywhere.";
+"Essai" = "Try it";
+"Clique dans le cadre. Maintiens %@, dis une phrase, relâche." = "Click in the box. Hold %@, say a sentence, release.";
+"Terminer" = "Done";

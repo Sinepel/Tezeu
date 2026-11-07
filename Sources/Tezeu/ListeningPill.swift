@@ -51,10 +51,12 @@ private struct PillView: View {
         HStack(spacing: 10) {
             if state.activity == .transcribing {
                 ProgressView().controlSize(.small)
-                Text(L("Transcription…"))
+                if !state.compactPill { Text(L("Transcription…")) }
             } else {
                 LevelBars(level: state.level)
-                Text(state.handsFree ? L("Appuie sur la touche pour finir · Échap annule") : L("Écoute…"))
+                if !state.compactPill {
+                    Text(state.handsFree ? L("Appuie sur la touche pour finir · Échap annule") : L("Écoute…"))
+                }
             }
         }
         .font(.callout)
@@ -76,8 +78,10 @@ private struct LevelBars: View {
         let value = CGFloat(min(1, max(0, (db + 50) / 40)))
         HStack(spacing: 3) {
             ForEach(Array([0.5, 0.8, 1, 0.8, 0.5].enumerated()), id: \.offset) { _, weight in
+                // Couleurs de l'icône de l'app.
                 Capsule()
-                    .fill(Color.accentColor)
+                    .fill(LinearGradient(colors: [Color(red: 1, green: 0.48, blue: 0.6), Color(red: 0.85, green: 0.11, blue: 0.36)],
+                                         startPoint: .top, endPoint: .bottom))
                     .frame(width: 3, height: 4 + 16 * value * weight)
             }
         }

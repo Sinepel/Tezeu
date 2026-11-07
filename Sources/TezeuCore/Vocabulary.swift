@@ -5,10 +5,15 @@ public enum Vocabulary {
     /// Texte donné au modèle avant l'audio, pour l'orienter vers ces mots (noms propres, jargon).
     /// Les mots sont séparés par des virgules ou des retours à la ligne. Nil si la liste est vide.
     public static func prompt(words: String) -> String? {
-        let list = words.split { $0 == "," || $0.isNewline }
+        let list = Self.words(words)
+        return list.isEmpty ? nil : list.joined(separator: ", ") + "."
+    }
+
+    /// Les mots de la liste, séparés par des virgules ou des retours à la ligne.
+    public static func words(_ text: String) -> [String] {
+        text.split { $0 == "," || $0.isNewline }
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
-        return list.isEmpty ? nil : list.joined(separator: ", ") + "."
     }
 
     public struct Replacement: Equatable {
