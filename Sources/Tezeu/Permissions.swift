@@ -1,3 +1,4 @@
+import TezeuCore
 import AppKit
 import ApplicationServices
 import AVFoundation
@@ -12,10 +13,10 @@ final class Permissions {
 
     /// Premier problème à régler, ou nil si tout est bon.
     var problem: String? {
-        if !hasMicDevice { return "Aucun micro détecté" }
-        if mic == .denied || mic == .restricted { return "Micro refusé" }
-        if mic != .authorized { return "Autorisation Micro requise" }
-        if !accessibility { return "Autorisation Accessibilité requise" }
+        if !hasMicDevice { return L("Aucun micro détecté") }
+        if mic == .denied || mic == .restricted { return L("Micro refusé") }
+        if mic != .authorized { return L("Autorisation Micro requise") }
+        if !accessibility { return L("Autorisation Accessibilité requise") }
         return nil
     }
 

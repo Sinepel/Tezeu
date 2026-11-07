@@ -8,8 +8,8 @@ enum DownloadError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .badStatus(let code): "Le serveur a répondu \(code)."
-        case .badChecksum: "Le fichier reçu ne correspond pas à l'empreinte attendue. Il a été supprimé."
+        case .badStatus(let code): L("Le serveur a répondu %d.", code)
+        case .badChecksum: L("Le fichier reçu ne correspond pas à l'empreinte attendue. Il a été supprimé.")
         }
     }
 }

@@ -42,7 +42,7 @@ final class AppState {
 
     var status: AppStatus {
         if let problem = permissions.problem { return .error(problem) }
-        if !installedModels.contains(model.id) { return .error("Modèle vocal à télécharger") }
+        if !installedModels.contains(model.id) { return .error(L("Modèle vocal à télécharger")) }
         return activity
     }
 
@@ -50,7 +50,7 @@ final class AppState {
         let defaults = UserDefaults.standard
         let savedKey = defaults.string(forKey: "hotKey").flatMap(HotKey.init(rawValue:)) ?? .rightOption
         hotKey = savedKey
-        language = defaults.string(forKey: "language").flatMap(Language.init(rawValue:)) ?? .french
+        language = defaults.string(forKey: "language").flatMap(Language.init(rawValue:)) ?? .systemDefault
         model = WhisperModel.all.first { $0.id == defaults.string(forKey: "model") } ?? .default
         refreshInstalledModels()
 
@@ -119,7 +119,7 @@ final class AppState {
             try recorder.start()
             activity = .listening
         } catch {
-            activity = .error("Micro indisponible")
+            activity = .error(L("Micro indisponible"))
         }
     }
 
@@ -132,9 +132,9 @@ final class AppState {
         if cancelled || seconds < Self.minimumSeconds || rms < Self.silenceRMS {
             samples.removeAll() // rien à transcrire : l'audio est effacé tout de suite
             activity = .ready
-            lastResult = cancelled ? "Annulé : une autre touche a été pressée"
-                : seconds < Self.minimumSeconds ? "Trop court, ignoré"
-                : "Rien entendu (silence)"
+            lastResult = cancelled ? L("Annulé : une autre touche a été pressée")
+                : seconds < Self.minimumSeconds ? L("Trop court, ignoré")
+                : L("Rien entendu (silence)")
             return
         }
 
@@ -146,18 +146,18 @@ final class AppState {
                 samples.removeAll() // l'audio n'est plus nécessaire
                 lastTranscript = text
                 guard !text.isEmpty else {
-                    lastResult = "Rien reconnu"
+                    lastResult = L("Rien reconnu")
                     activity = .ready
                     return
                 }
                 switch await Paster.paste(text) {
                 case .pasted:
-                    lastResult = String(format: "Collé (%.1f s d'audio)", seconds)
+                    lastResult = L("Collé (%.1f s d'audio)", seconds)
                     activity = .ready
                 case .keptInClipboard(let reason):
                     // L'icône passe en erreur pour que l'échec se voie sans ouvrir le panneau.
-                    lastResult = "\(reason). Texte gardé dans le presse-papiers : colle-le avec ⌘V."
-                    activity = .error("Collage impossible")
+                    lastResult = L("%@. Texte gardé dans le presse-papiers : colle-le avec ⌘V.", reason)
+                    activity = .error(L("Collage impossible"))
                 }
             } catch {
                 samples.removeAll()

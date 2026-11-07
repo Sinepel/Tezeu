@@ -1,3 +1,4 @@
+import TezeuCore
 import AppKit
 
 /// Touche à maintenir pour dicter. Uniquement des touches de modification du côté droit,
@@ -9,9 +10,9 @@ enum HotKey: String, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .rightOption: "Option droite"
-        case .rightCommand: "Commande droite"
-        case .rightControl: "Contrôle droite"
+        case .rightOption: L("Option droite")
+        case .rightCommand: L("Commande droite")
+        case .rightControl: L("Contrôle droite")
         }
     }
 

@@ -1,3 +1,4 @@
+import TezeuCore
 /// État affiché par l'icône de la barre de menus.
 enum AppStatus: Equatable {
     case ready
@@ -16,9 +17,9 @@ enum AppStatus: Equatable {
 
     var label: String {
         switch self {
-        case .ready: "Prêt"
-        case .listening: "Écoute…"
-        case .transcribing: "Transcription…"
+        case .ready: L("Prêt")
+        case .listening: L("Écoute…")
+        case .transcribing: L("Transcription…")
         case .error(let message): message
         }
     }

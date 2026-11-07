@@ -7,8 +7,8 @@ public enum TranscriberError: LocalizedError {
 
     public var errorDescription: String? {
         switch self {
-        case .loadFailed: "Impossible de charger le modèle vocal"
-        case .failed: "La transcription a échoué"
+        case .loadFailed: L("Impossible de charger le modèle vocal")
+        case .failed: L("La transcription a échoué")
         }
     }
 }

@@ -1,0 +1,53 @@
+/* Traductions anglaises de Tézeu. Clé = texte français utilisé dans le code via L("…"). */
+
+/* État de l'icône */
+"Prêt" = "Ready";
+"Écoute…" = "Listening…";
+"Transcription…" = "Transcribing…";
+
+/* Panneau */
+"Touche" = "Key";
+"Langue" = "Language";
+"Modèle" = "Model";
+"Autorisations" = "Permissions";
+"Autoriser" = "Allow";
+"Micro" = "Microphone";
+"Accessibilité" = "Accessibility";
+"Pour entendre ta voix." = "To hear your voice.";
+"Branche un micro." = "Plug in a microphone.";
+"Pour la touche et le collage." = "For the shortcut key and pasting.";
+"Quitter Tézeu" = "Quit Tézeu";
+"Option droite" = "Right Option";
+"Commande droite" = "Right Command";
+"Contrôle droite" = "Right Control";
+"Détection automatique" = "Automatic detection";
+
+/* Modèles */
+"Équilibré (large-v3-turbo)" = "Balanced (large-v3-turbo)";
+"Léger (small)" = "Light (small)";
+"Très léger (base)" = "Very light (base)";
+"Source : %@\nTaille : %@. L'empreinte sera vérifiée." = "Source: %@\nSize: %@. The checksum will be verified.";
+"Télécharger le modèle (%@)" = "Download the model (%@)";
+"Téléchargement… %d %%" = "Downloading… %d%%";
+"Le serveur a répondu %d." = "The server responded %d.";
+"Le fichier reçu ne correspond pas à l'empreinte attendue. Il a été supprimé." = "The downloaded file does not match the expected checksum. It has been deleted.";
+
+/* Erreurs et résultats */
+"Aucun micro détecté" = "No microphone detected";
+"Micro refusé" = "Microphone access denied";
+"Autorisation Micro requise" = "Microphone permission required";
+"Autorisation Accessibilité requise" = "Accessibility permission required";
+"Modèle vocal à télécharger" = "Speech model not downloaded";
+"Micro indisponible" = "Microphone unavailable";
+"Annulé : une autre touche a été pressée" = "Cancelled: another key was pressed";
+"Trop court, ignoré" = "Too short, ignored";
+"Rien entendu (silence)" = "Nothing heard (silence)";
+"Rien reconnu" = "Nothing recognized";
+"Collé (%.1f s d'audio)" = "Pasted (%.1f s of audio)";
+"Collage impossible" = "Could not paste";
+"%@. Texte gardé dans le presse-papiers : colle-le avec ⌘V." = "%@. Text kept in the clipboard: paste it with ⌘V.";
+"Accessibilité non autorisée" = "Accessibility not allowed";
+"Champ protégé (mot de passe)" = "Protected field (password)";
+"Aucun champ de texte actif" = "No active text field";
+"Impossible de charger le modèle vocal" = "Could not load the speech model";
+"La transcription a échoué" = "Transcription failed";

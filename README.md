@@ -13,7 +13,8 @@ App originale. Aucun code, nom, logo ou texte d'une autre app de dictée n'a ét
 > Hold a key, speak, release: the text is pasted into the active app. Speech recognition runs
 > locally with [whisper.cpp](https://github.com/ggml-org/whisper.cpp) on Metal. No account,
 > no telemetry, no network access except the explicit, checksum-verified model download.
-> Swift / SwiftUI menu bar app, builds without Xcode. MIT licensed.
+> Dictation in French, English, Spanish, German, Italian, Portuguese and Dutch (or auto-detect).
+> English and French interface. Swift / SwiftUI menu bar app, builds without Xcode. MIT licensed.
 
 État : version 0.1, en développement. Pas encore de version compilée à télécharger :
 il faut compiler l'app soi-même (5 minutes, voir ci-dessous).
@@ -54,8 +55,11 @@ Il faut lancer les scripts dans Terminal.app : macOS demande ton mot de passe da
 
 Dans le panneau, tu peux choisir :
 - la touche : Option, Commande ou Contrôle, côté droit ;
-- la langue : Français, ou Détection automatique ;
+- la langue de dictée : français, anglais, espagnol, allemand, italien, portugais, néerlandais,
+  ou détection automatique (moins fiable sur une phrase courte). Par défaut : la langue du Mac ;
 - le modèle : Équilibré (574 Mo), Léger (190 Mo) ou Très léger (60 Mo), si ton Mac est lent.
+
+L'interface est en français ou en anglais, selon la langue du Mac.
 
 L'icône montre l'état : micro (prêt), onde (écoute), « … » (transcription), triangle (erreur).
 
@@ -91,7 +95,7 @@ Tout le code réseau est dans un seul fichier : `Sources/Tezeu/ModelDownloader.s
 ## Vérifications
 
 ```
-# Tests du presse-papiers (sauvegarde et remise), sur un presse-papiers privé
+# Tests du presse-papiers (sauvegarde et remise, sur un presse-papiers privé) et des traductions
 swift run -c release SelfCheck
 
 # Transcription d'un fichier audio, sans micro
@@ -123,3 +127,11 @@ while true; do lsof -nP -i -a -p "$(pgrep -x Tezeu)"; sleep 1; done
   pourrait coller l'ancien contenu : il faudrait alors allonger `Paster.restoreDelay`.
 - Le seuil de silence est fixe : un micro très faible pourrait être pris pour du silence
   (`AppState.silenceRMS`).
+
+## Ajouter une langue
+
+- **Dictée** : ajouter son code ISO 639-1 (`case japanese = "ja"`) dans `Language`,
+  `Sources/TezeuCore/WhisperModel.swift`. Les modèles sont multilingues : rien à télécharger.
+- **Interface** : copier `Resources/en.lproj` vers `<code>.lproj`, traduire les textes de droite,
+  ajouter le code dans `CFBundleLocalizations` (`Resources/Info.plist`).
+  `swift run -c release SelfCheck` vérifie qu'aucun texte anglais ne manque.

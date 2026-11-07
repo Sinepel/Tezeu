@@ -47,10 +47,10 @@ struct MenuView: View {
                 Text(text).textSelection(.enabled).lineLimit(6)
             }
 
-            Picker("Touche", selection: Binding(get: { state.hotKey }, set: { state.hotKey = $0 })) {
+            Picker(L("Touche"), selection: Binding(get: { state.hotKey }, set: { state.hotKey = $0 })) {
                 ForEach(HotKey.allCases) { Text($0.label).tag($0) }
             }
-            Picker("Langue", selection: Binding(get: { state.language }, set: { state.language = $0 })) {
+            Picker(L("Langue"), selection: Binding(get: { state.language }, set: { state.language = $0 })) {
                 ForEach(Language.allCases) { Text($0.label).tag($0) }
             }
 
@@ -58,23 +58,23 @@ struct MenuView: View {
             ModelSection(state: state)
 
             Divider()
-            Text("Autorisations").font(.subheadline.bold())
+            Text(L("Autorisations")).font(.subheadline.bold())
 
             PermissionRow(
-                title: "Micro",
-                detail: p.hasMicDevice ? "Pour entendre ta voix." : "Branche un micro.",
+                title: L("Micro"),
+                detail: p.hasMicDevice ? L("Pour entendre ta voix.") : L("Branche un micro."),
                 granted: p.hasMicDevice && p.mic == .authorized,
                 action: p.hasMicDevice ? { p.requestMic() } : nil
             )
             PermissionRow(
-                title: "Accessibilité",
-                detail: "Pour la touche et le collage.",
+                title: L("Accessibilité"),
+                detail: L("Pour la touche et le collage."),
                 granted: p.accessibility,
                 action: { p.requestAccessibility() }
             )
 
             Divider()
-            Button("Quitter Tézeu") { state.quit() }
+            Button(L("Quitter Tézeu")) { state.quit() }
         }
         .padding()
         .frame(width: 300)
@@ -88,21 +88,21 @@ struct ModelSection: View {
     var body: some View {
         let model = state.model
         VStack(alignment: .leading, spacing: 6) {
-            Picker("Modèle", selection: Binding(get: { state.model }, set: { state.model = $0 })) {
+            Picker(L("Modèle"), selection: Binding(get: { state.model }, set: { state.model = $0 })) {
                 ForEach(WhisperModel.all) { m in
-                    Text("\(m.label) · \(m.sizeLabel)\(state.installedModels.contains(m.id) ? " ✓" : "")").tag(m)
+                    Text(verbatim: "\(m.label) · \(m.sizeLabel)\(state.installedModels.contains(m.id) ? " ✓" : "")").tag(m)
                 }
             }
             .disabled(state.downloadProgress != nil)
 
             if let progress = state.downloadProgress {
                 ProgressView(value: progress) {
-                    Text("Téléchargement… \(Int(progress * 100)) %").font(.caption)
+                    Text(L("Téléchargement… %d %%", Int(progress * 100))).font(.caption)
                 }
             } else if !state.installedModels.contains(model.id) {
-                Text("Source : \(WhisperModel.sourceLabel)\nTaille : \(model.sizeLabel). L'empreinte sera vérifiée.")
+                Text(L("Source : %@\nTaille : %@. L'empreinte sera vérifiée.", WhisperModel.sourceLabel, model.sizeLabel))
                     .font(.caption).foregroundStyle(.secondary)
-                Button("Télécharger le modèle (\(model.sizeLabel))") { state.downloadModel() }
+                Button(L("Télécharger le modèle (%@)", model.sizeLabel)) { state.downloadModel() }
             }
             if let error = state.downloadError {
                 Text(error).font(.caption).foregroundStyle(.red)
@@ -127,7 +127,7 @@ struct PermissionRow: View {
             }
             Spacer()
             if !granted, let action {
-                Button("Autoriser", action: action)
+                Button(L("Autoriser"), action: action)
             }
         }
     }

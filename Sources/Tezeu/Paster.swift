@@ -40,23 +40,23 @@ enum Paster {
     /// Raison de ne pas coller, ou nil si le collage est possible.
     private static func blockReason() -> String? {
         if !AXIsProcessTrusted() {
-            return "Accessibilité non autorisée"
+            return L("Accessibilité non autorisée")
         }
         // Saisie protégée active (champ de mot de passe, Terminal en mode sécurisé…) : on n'insiste pas.
         if IsSecureEventInputEnabled() {
-            return "Champ protégé (mot de passe)"
+            return L("Champ protégé (mot de passe)")
         }
         var focused: CFTypeRef?
         let system = AXUIElementCreateSystemWide()
         guard AXUIElementCopyAttributeValue(system, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
               let focused, CFGetTypeID(focused) == AXUIElementGetTypeID()
         else {
-            return "Aucun champ de texte actif"
+            return L("Aucun champ de texte actif")
         }
         var subrole: CFTypeRef?
         AXUIElementCopyAttributeValue(focused as! AXUIElement, kAXSubroleAttribute as CFString, &subrole)
         if (subrole as? String) == kAXSecureTextFieldSubrole {
-            return "Champ protégé (mot de passe)"
+            return L("Champ protégé (mot de passe)")
         }
         return nil
     }
