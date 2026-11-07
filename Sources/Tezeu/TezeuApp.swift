@@ -74,11 +74,20 @@ struct MenuView: View {
             )
 
             Divider()
+            Toggle(L("Lancer à l'ouverture de session"), isOn: Binding(
+                get: { state.launchAtLogin }, set: { state.setLaunchAtLogin($0) }
+            ))
+            if let note = state.launchAtLoginNote {
+                Text(note).font(.caption).foregroundStyle(.secondary)
+            }
             Button(L("Quitter Tézeu")) { state.quit() }
         }
         .padding()
         .frame(width: 300)
-        .onAppear { p.refresh() }
+        .onAppear {
+            p.refresh()
+            state.refreshLaunchAtLogin()
+        }
     }
 }
 

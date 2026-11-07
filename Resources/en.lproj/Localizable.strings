@@ -51,3 +51,7 @@
 "Aucun champ de texte actif" = "No active text field";
 "Impossible de charger le modèle vocal" = "Could not load the speech model";
 "La transcription a échoué" = "Transcription failed";
+
+/* Ouverture de session */
+"Lancer à l'ouverture de session" = "Launch at login";
+"À autoriser dans Réglages Système > Général > Ouverture." = "Allow it in System Settings > General > Login Items.";

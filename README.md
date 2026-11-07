@@ -59,6 +59,10 @@ Dans le panneau, tu peux choisir :
   ou détection automatique (moins fiable sur une phrase courte). Par défaut : la langue du Mac ;
 - le modèle : Équilibré (574 Mo), Léger (190 Mo) ou Très léger (60 Mo), si ton Mac est lent.
 
+Option « Lancer à l'ouverture de session » en bas du panneau. macOS peut demander de l'autoriser
+dans Réglages Système > Général > Ouverture. L'app est lancée depuis son emplacement actuel :
+si elle est sur un disque externe, ce disque doit être branché à l'ouverture de session.
+
 L'interface est en français ou en anglais, selon la langue du Mac.
 
 L'icône montre l'état : micro (prêt), onde (écoute), « … » (transcription), triangle (erreur).

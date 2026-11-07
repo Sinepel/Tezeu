@@ -1,4 +1,5 @@
 import AppKit
+import ServiceManagement
 import TezeuCore
 
 @MainActor
@@ -34,6 +35,9 @@ final class AppState {
     private(set) var installedModels: Set<String> = []
     private(set) var downloadProgress: Double?
     private(set) var downloadError: String?
+    /// Lancement à l'ouverture de session (Réglages > Général > Ouverture).
+    private(set) var launchAtLogin = false
+    private(set) var launchAtLoginNote: String?
 
     @ObservationIgnored private var monitor: HotKeyMonitor?
     @ObservationIgnored private let recorder = Recorder()
@@ -79,6 +83,31 @@ final class AppState {
     }
 
     /// Libère whisper.cpp puis ferme l'app (sinon whisper plante à la fermeture).
+    func refreshLaunchAtLogin() {
+        let status = SMAppService.mainApp.status
+        launchAtLogin = status == .enabled || status == .requiresApproval
+        if status == .requiresApproval {
+            launchAtLoginNote = L("À autoriser dans Réglages Système > Général > Ouverture.")
+        }
+    }
+
+    func setLaunchAtLogin(_ enabled: Bool) {
+        launchAtLoginNote = nil
+        do {
+            if enabled {
+                try SMAppService.mainApp.register()
+            } else {
+                try SMAppService.mainApp.unregister()
+            }
+        } catch {
+            launchAtLoginNote = error.localizedDescription
+        }
+        refreshLaunchAtLogin()
+        if SMAppService.mainApp.status == .requiresApproval {
+            SMAppService.openSystemSettingsLoginItems()
+        }
+    }
+
     func quit() {
         Task {
             await Self.transcriber.unload()
