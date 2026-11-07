@@ -1,0 +1,58 @@
+# Compile Tézeu et joint l'app à la release GitHub.
+# - Publication d'une release (tag vX.Y.Z) : l'app zippée est ajoutée à la release.
+# - Lancement manuel (onglet Actions > Release > Run workflow) : build de test, zip en artefact.
+# Signature ad hoc : pas de compte Apple Developer, donc pas de notarisation (voir README).
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest # puce Apple
+    env:
+      TAG: ${{ github.event.release.tag_name || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Versions des outils
+        run: |
+          sw_vers
+          swift --version
+
+      - name: Compilation
+        env:
+          SIGN_IDENTITY: "-"
+        run: |
+          VERSION="${TAG#v}"
+          [[ "$TAG" == dev ]] && VERSION="0.0.0-dev"
+          VERSION="$VERSION" ./build.sh
+
+      - name: Vérifications (presse-papiers, traductions)
+        run: swift run -c release SelfCheck
+
+      - name: Archive
+        run: |
+          ZIP="Tezeu-${TAG}-macos-arm64.zip"
+          ditto -c -k --keepParent build/Tezeu.app "$ZIP"
+          shasum -a 256 "$ZIP" > "$ZIP.sha256"
+          cat "$ZIP.sha256"
+          echo "ZIP=$ZIP" >> "$GITHUB_ENV"
+
+      - name: Ajout à la release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" "$ZIP" "$ZIP.sha256" --clobber
+
+      - name: Artefact (lancement manuel)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Tezeu-dev
+          path: Tezeu-*.zip*

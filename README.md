@@ -16,10 +16,25 @@ App originale. Aucun code, nom, logo ou texte d'une autre app de dictée n'a ét
 > Dictation in French, English, Spanish, German, Italian, Portuguese and Dutch (or auto-detect).
 > English and French interface. Swift / SwiftUI menu bar app, builds without Xcode. MIT licensed.
 
-État : version 0.1, en développement. Pas encore de version compilée à télécharger :
-il faut compiler l'app soi-même (5 minutes, voir ci-dessous).
+État : version 0.1, en développement.
 
-## Installation
+## Installer une version compilée
+
+Chaque release publiée sur GitHub contient `Tezeu-vX.Y.Z-macos-arm64.zip`, compilée par une
+GitHub Action (`.github/workflows/release.yml`), avec son empreinte SHA-256.
+
+1. Télécharge le zip depuis la page **Releases**, ouvre-le, glisse `Tezeu.app` dans **Applications**.
+2. Au premier lancement, macOS bloque l'app : elle n'est pas validée par Apple (pas de compte
+   Apple Developer). Va dans Réglages Système > Confidentialité et sécurité, et clique sur
+   **Ouvrir quand même**. Ou, dans Terminal : `xattr -dr com.apple.quarantine /Applications/Tezeu.app`
+3. Donne les autorisations Micro et Accessibilité.
+
+Limite : la version compilée a une signature « ad hoc », différente à chaque version.
+Après chaque mise à jour, macOS demande de redonner l'autorisation Accessibilité
+(décoche puis recoche Tezeu dans Réglages Système > Confidentialité et sécurité > Accessibilité).
+Pour éviter ça, compile l'app toi-même (ci-dessous).
+
+## Compiler l'app soi-même
 
 Il faut un Mac à puce Apple (macOS 14 ou plus récent) et les outils en ligne de commande d'Apple
 (`xcode-select --install`). Xcode n'est pas nécessaire.
@@ -35,6 +50,17 @@ open build/Tezeu.app
 ```
 
 Pour recompiler : `pkill -x Tezeu`, puis `./build.sh`, puis `open build/Tezeu.app`.
+
+### Publier une release (mainteneur)
+
+Les commits ne déclenchent aucune compilation. Seule la publication d'une release le fait :
+
+```
+gh release create v0.2.0 --generate-notes
+```
+
+La GitHub Action compile l'app, lance `SelfCheck`, puis joint le zip et son empreinte à la release
+(5 à 10 minutes). Un lancement manuel (Actions > Release > Run workflow) fait un build de test sans release.
 
 ### Pourquoi un certificat local
 
