@@ -26,7 +26,7 @@ Il faut un Mac à puce Apple (macOS 14 ou plus récent) et les outils en ligne d
 Dans Terminal.app :
 
 ```
-git clone https://github.com/Sinepel/T-zeu.git tezeu
+git clone https://github.com/Sinepel/Tezeu.git
 cd tezeu
 ./scripts/make-cert.sh   # une seule fois : crée le certificat local « Tezeu Dev »
 ./build.sh               # télécharge whisper.cpp (66 Mo, empreinte vérifiée), compile, fabrique build/Tezeu.app
