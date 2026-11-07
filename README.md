@@ -1,3 +1,5 @@
+<img src="Resources/AppIcon-1024.png" width="128" alt="Icône de Tézeu : des lèvres closes">
+
 # Tézeu
 
 Petite app de dictée pour Mac, 100 % locale. Tu maintiens une touche, tu parles,

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Icône de Tézeu : des lèvres closes (le « taiseux »), des ondes de voix qui entrent sans ressortir. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4A1240"/>
+      <stop offset="1" stop-color="#14061F"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.55" r="0.5">
+      <stop offset="0" stop-color="#FF4F7B" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#FF4F7B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="upper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FF7A98"/>
+      <stop offset="1" stop-color="#D81B5C"/>
+    </linearGradient>
+    <linearGradient id="lower" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F0386B"/>
+      <stop offset="1" stop-color="#A3104A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Carré arrondi au gabarit macOS : 824 px de côté, centré. -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#glow)"/>
+
+  <!-- Ondes de voix, à gauche, qui vont vers la bouche. -->
+  <!-- Couleurs déjà mélangées au fond : le moteur SVG de macOS ignore stroke-opacity. -->
+  <g fill="none" stroke-linecap="round" stroke-width="20">
+    <path d="M 262 488 Q 246 544 262 600" stroke="#C77A9E"/>
+    <path d="M 216 452 Q 192 544 216 636" stroke="#8A4677"/>
+  </g>
+
+  <g transform="translate(46 4)">
+
+  <!-- Lèvre supérieure, avec l'arc de Cupidon. -->
+  <path fill="url(#upper)" d="
+    M 246 540
+    C 310 466, 386 418, 452 434
+    C 482 441, 500 458, 512 470
+    C 524 458, 542 441, 572 434
+    C 638 418, 714 466, 778 540
+    C 690 552, 600 556, 512 558
+    C 424 556, 334 552, 246 540 Z"/>
+
+  <!-- Lèvre inférieure. -->
+  <path fill="url(#lower)" d="
+    M 246 540
+    C 334 560, 424 566, 512 568
+    C 600 566, 690 560, 778 540
+    C 728 640, 630 700, 512 704
+    C 394 700, 296 640, 246 540 Z"/>
+
+  <!-- Reflet sur la lèvre inférieure. -->
+  <ellipse cx="512" cy="622" rx="84" ry="13" fill="#FFFFFF" fill-opacity="0.2"/>
+  </g>
+</svg>
