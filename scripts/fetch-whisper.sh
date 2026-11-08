@@ -16,7 +16,7 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 echo "Téléchargement de whisper.cpp $VERSION (66 Mo) depuis GitHub…"
-curl -fL --retry 5 --retry-delay 20 --progress-bar -o "$TMP/whisper.zip" "$URL"
+curl -fL --retry 5 --retry-all-errors --retry-delay 20 --progress-bar -o "$TMP/whisper.zip" "$URL"
 echo "$SHA256  $TMP/whisper.zip" | shasum -a 256 -c -
 ditto -x -k "$TMP/whisper.zip" "$TMP/x"
 mkdir -p Vendor
