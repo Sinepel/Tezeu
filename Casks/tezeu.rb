@@ -25,7 +25,7 @@ cask "tezeu" do
     On first launch, macOS blocks it: open System Settings > Privacy & Security
     and click "Open Anyway".
 
-    After each update, grant Accessibility again: uncheck then re-check Tezeu in
-    System Settings > Privacy & Security > Accessibility.
+    Upgrading from 0.1.x: remove Tezeu once from System Settings > Privacy &
+    Security > Accessibility (select it, then "-"), relaunch it and accept.
   EOS
 end

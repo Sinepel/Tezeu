@@ -28,7 +28,7 @@ brew install --cask tezeu
 La formule (`Casks/tezeu.rb`) est dans ce dépôt. Elle n'est pas dans le catalogue officiel de Homebrew :
 celui-ci refuse les apps non notarisées par Apple. Elle pointe vers la dernière version stable,
 et la GitHub Action la met à jour à chaque release stable. Mêmes limites que ci-dessous :
-au premier lancement, « Ouvrir quand même », et l'autorisation Accessibilité à redonner après chaque mise à jour.
+au premier lancement, « Ouvrir quand même ».
 
 ## Installer une version compilée
 
@@ -41,10 +41,14 @@ GitHub Action (`.github/workflows/release.yml`), avec son empreinte SHA-256.
    **Ouvrir quand même**. Ou, dans Terminal : `xattr -dr com.apple.quarantine /Applications/Tezeu.app`
 3. Donne les autorisations Micro et Accessibilité.
 
-Limite : la version compilée a une signature « ad hoc », différente à chaque version.
-Après chaque mise à jour, macOS demande de redonner l'autorisation Accessibilité
-(décoche puis recoche Tezeu dans Réglages Système > Confidentialité et sécurité > Accessibilité).
-Pour éviter ça, compile l'app toi-même (ci-dessous).
+Depuis la 0.2.0, la version compilée est signée avec le certificat « Tezeu Dev » (voir plus bas).
+La signature reste la même d'une version à l'autre : l'autorisation Accessibilité est gardée
+après une mise à jour.
+
+Tu viens d'une version plus ancienne (signature « ad hoc ») ? Une seule fois : dans Réglages Système >
+Confidentialité et sécurité > Accessibilité, sélectionne Tezeu et retire-la avec **−**
+(décocher ne suffit pas). Relance Tézeu et accepte la demande.
+Ou, dans Terminal : `tccutil reset Accessibility local.tezeu.app`.
 
 ## Compiler l'app soi-même
 
@@ -80,7 +84,12 @@ macOS retient l'autorisation Accessibilité pour une app **signée** d'une certa
 Si la signature change à chaque compilation, macOS croit voir une nouvelle app et l'autorisation saute.
 `make-cert.sh` crée un certificat « Tezeu Dev » dans ton trousseau, valable 10 ans,
 fiable pour ton compte seulement. `build.sh` signe toujours avec lui : la signature reste la même.
-Ce certificat ne sert qu'à ce Mac et ne quitte pas le Mac.
+Ce certificat ne sert qu'à signer Tézeu.
+
+Pour que la GitHub Action signe avec le même certificat, il est aussi gardé dans les secrets
+du dépôt (`TEZEU_CERT_P12`, `TEZEU_CERT_PASSWORD`). L'Action l'importe dans un trousseau temporaire,
+effacé à la fin du build. Sans ces secrets, elle signe en « ad hoc ».
+Une app compilée sur ton Mac et une app de la release ont donc la même signature.
 
 Il faut lancer les scripts dans Terminal.app : macOS demande ton mot de passe dans une fenêtre.
 
