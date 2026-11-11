@@ -128,6 +128,17 @@ final class AppState {
     var compactPill: Bool {
         didSet { UserDefaults.standard.set(compactPill, forKey: "compactPill") }
     }
+    /// Mode debug : un onglet Diagnostic montre ce qui s'est passé à chaque dictée.
+    /// Gardé en mémoire seulement (jamais écrit sur le disque), effacé quand l'app quitte.
+    var debugMode: Bool {
+        didSet {
+            UserDefaults.standard.set(debugMode, forKey: "debugMode")
+            if !debugMode { diagnostics = [] }
+        }
+    }
+    private(set) var diagnostics: [Diagnostic] = []
+    /// App au premier plan au début de l'écoute (identifiant seulement).
+    @ObservationIgnored private var listeningApp: String?
     /// Assistant de premier lancement terminé.
     var onboardingDone: Bool {
         didSet { UserDefaults.standard.set(onboardingDone, forKey: "onboardingDone") }
@@ -175,6 +186,7 @@ final class AppState {
         preloadModel = defaults.object(forKey: "preloadModel") as? Bool ?? true
         compactPill = defaults.object(forKey: "compactPill") as? Bool ?? false
         onboardingDone = defaults.bool(forKey: "onboardingDone")
+        debugMode = defaults.bool(forKey: "debugMode")
         refreshInstalledModels()
 
         // La détection de touche doit démarrer APRÈS le lancement de l'app : installée plus tôt
@@ -386,7 +398,8 @@ final class AppState {
         }
         handsFree = monitor?.isHandsFree ?? false
         // Seul l'identifiant de l'app est lu, jamais son contenu.
-        listeningLanguage = NSWorkspace.shared.frontmostApplication?.bundleIdentifier.flatMap { appLanguages[$0] }
+        listeningApp = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+        listeningLanguage = listeningApp.flatMap { appLanguages[$0] }
         level = 0
         activity = .listening
         if soundsEnabled { NSSound(named: "Tink")?.play() }
@@ -408,10 +421,16 @@ final class AppState {
 
     private func finishListening(cancel: DictationGesture.Cancel?) {
         guard activity == .listening else { return }
+        let stats = recorder.stats
         var samples = recorder.stop()
         let seconds = Double(samples.count) / Transcriber.sampleRate
         let silenceRMS = Float(pow(10, silenceDB / 20))
         let rms = samples.isEmpty ? 0 : (samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count)).squareRoot()
+        var diag = Diagnostic(app: listeningApp ?? "?", device: stats.device, format: stats.format,
+                              buffers: stats.buffers, dropped: stats.dropped, restarts: stats.restarts,
+                              seconds: seconds, averageDB: Diagnostic.dB(rms), peakDB: Diagnostic.dB(stats.peak),
+                              thresholdDB: silenceDB, model: model.label,
+                              language: (listeningLanguage ?? language).label)
 
         if cancel != nil || seconds < Self.minimumSeconds || rms < silenceRMS {
             samples.removeAll() // rien à transcrire : l'audio est effacé tout de suite
@@ -422,6 +441,7 @@ final class AppState {
             case .escape: L("Annulé avec Échap")
             case nil: seconds < Self.minimumSeconds ? L("Trop court, ignoré") : L("Rien entendu (silence)")
             }
+            addDiagnostic(diag)
             return
         }
 
@@ -429,20 +449,27 @@ final class AppState {
             samples.removeAll()
             activity = .ready
             lastResult = L("Un fichier est en cours de transcription. Réessaie après.")
+            addDiagnostic(diag)
             return
         }
 
         if soundsEnabled { NSSound(named: "Pop")?.play() }
         // Silences du début et de la fin enlevés : moins de phrases inventées par le modèle, et plus rapide.
         samples = SilenceTrim.trim(samples, threshold: silenceRMS, sampleRate: Transcriber.sampleRate)
+        diag.keptSeconds = Double(samples.count) / Transcriber.sampleRate
+        let baseDiag = diag
         activity = .transcribing
         let model = model, language = listeningLanguage ?? language
         let prompt = Vocabulary.prompt(words: vocabulary), rules = Vocabulary.replacements(replacements)
         let keepCase = Set(Vocabulary.words(vocabulary))
         Task {
+            var diag = baseDiag
+            let started = Date()
             do {
                 let raw = try await Self.transcriber.transcribe(samples, modelURL: model.localURL, language: language, prompt: prompt)
                 samples.removeAll() // l'audio n'est plus nécessaire
+                diag.transcribeSeconds = Date().timeIntervalSince(started)
+                diag.raw = raw
                 var text = Vocabulary.apply(rules, to: Hallucinations.clean(raw))
                 if voiceCommands { text = VoiceCommands.apply(text, language: language) }
                 text = text.trimmingCharacters(in: .whitespaces)
@@ -450,6 +477,7 @@ final class AppState {
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     lastResult = L("Rien reconnu")
                     activity = .ready
+                    addDiagnostic(diag)
                     return
                 }
                 if autoSpacing {
@@ -467,11 +495,63 @@ final class AppState {
                     lastResult = L("%@. Texte gardé dans le presse-papiers : colle-le avec ⌘V.", reason)
                     activity = .error(L("Collage impossible"))
                 }
+                addDiagnostic(diag)
             } catch {
                 samples.removeAll()
                 activity = .error(error.localizedDescription)
+                addDiagnostic(diag, result: error.localizedDescription)
             }
         }
+    }
+
+    private func addDiagnostic(_ diag: Diagnostic, result: String? = nil) {
+        guard debugMode else { return }
+        var diag = diag
+        diag.result = result ?? lastResult ?? ""
+        diagnostics.insert(diag, at: 0)
+        diagnostics = Array(diagnostics.prefix(20))
+    }
+}
+
+/// Ce qui s'est passé pendant une dictée (mode debug). Gardé en mémoire seulement.
+struct Diagnostic: Identifiable {
+    let id = UUID()
+    let date = Date()
+    var app: String
+    var device: String
+    var format: String
+    var buffers: Int
+    var dropped: Int
+    var restarts: Int
+    var seconds: Double
+    var averageDB: Double
+    var peakDB: Double
+    var thresholdDB: Double
+    var model: String
+    var language: String
+    var keptSeconds: Double?
+    var transcribeSeconds: Double?
+    /// Texte brut du modèle, avant filtres et commandes vocales. Affiché, jamais copié ni écrit.
+    var raw: String?
+    var result = ""
+
+    static func dB(_ rms: Float) -> Double { 20 * log10(max(Double(rms), 1e-6)) }
+
+    /// Lignes techniques, sans le texte dicté (pour « Copier »).
+    var lines: [String] {
+        var lines = [
+            "\(L("Résultat")) : \(result)",
+            "\(L("App")) : \(app)",
+            "\(L("Micro")) : \(device) (\(format))",
+            "\(L("Blocs audio")) : \(buffers), \(L("perdus")) : \(dropped), \(L("relances du micro")) : \(restarts)",
+            String(format: "\(L("Durée")) : %.1f s, \(L("gardée après silences")) : %@", seconds,
+                   keptSeconds.map { String(format: "%.1f s", $0) } ?? "–"),
+            String(format: "\(L("Volume moyen")) : %.0f dB, \(L("crête")) : %.0f dB, \(L("seuil de silence")) : %.0f dB",
+                   averageDB, peakDB, thresholdDB),
+            "\(L("Modèle")) : \(model), \(L("langue")) : \(language)",
+        ]
+        if let transcribeSeconds { lines.append(String(format: "\(L("Transcription")) : %.1f s", transcribeSeconds)) }
+        return lines
     }
 }
 

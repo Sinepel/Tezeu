@@ -17,6 +17,24 @@ final class Recorder {
     private var configObserver: NSObjectProtocol?
     private var watchdog: Task<Void, Never>?
     private var restarts = 0
+    private var deviceName = "?"
+    private var formatLabel = "?"
+
+    /// Informations techniques sur l'enregistrement en cours (mode debug). Jamais l'audio.
+    struct Stats {
+        var device: String
+        var format: String
+        var buffers: Int
+        var dropped: Int
+        var restarts: Int
+        var peak: Float
+    }
+
+    var stats: Stats {
+        let counts = capture?.counts ?? (buffers: 0, dropped: 0, peak: 0)
+        return Stats(device: deviceName, format: formatLabel, buffers: counts.buffers, dropped: counts.dropped,
+                     restarts: restarts, peak: counts.peak)
+    }
 
     /// Relances au plus par enregistrement (évite une boucle si le micro change sans arrêt).
     private static let maxRestarts = 3
@@ -76,6 +94,8 @@ final class Recorder {
                                  &device, UInt32(MemoryLayout<AudioDeviceID>.size))
         }
         let inFormat = input.outputFormat(forBus: 0)
+        deviceName = input.audioUnit.flatMap(Self.currentDeviceName) ?? "?"
+        formatLabel = "\(Int(inFormat.sampleRate)) Hz, \(inFormat.channelCount) canal(aux)"
         guard inFormat.sampleRate > 0, inFormat.channelCount > 0,
               let converter = AVAudioConverter(from: inFormat, to: Self.outFormat)
         else { throw RecorderError.noMic }
@@ -111,6 +131,21 @@ final class Recorder {
         try? startEngine()
     }
 
+    /// Nom du micro réellement utilisé par le moteur audio.
+    private static func currentDeviceName(_ unit: AudioUnit) -> String? {
+        var device = AudioDeviceID(kAudioObjectUnknown)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        guard AudioUnitGetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                   &device, &size) == noErr else { return nil }
+        var name: Unmanaged<CFString>?
+        var nameSize = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        var address = AudioObjectPropertyAddress(mSelector: kAudioObjectPropertyName,
+                                                 mScope: kAudioObjectPropertyScopeGlobal,
+                                                 mElement: kAudioObjectPropertyElementMain)
+        guard AudioObjectGetPropertyData(device, &address, 0, nil, &nameSize, &name) == noErr, let name else { return nil }
+        return name.takeRetainedValue() as String
+    }
+
     private static func audioDevice(uid: String) -> AudioDeviceID? {
         var cfUID = uid as CFString
         var device = AudioDeviceID(kAudioObjectUnknown)
@@ -134,8 +169,14 @@ private final class Capture: @unchecked Sendable {
     private var samples: [Float] = []
     private var lastLevel: Float = 0
     private var heard = false
+    private var buffers = 0
+    private var dropped = 0
+    private var peak: Float = 0
 
     var level: Float { lock.withLock { lastLevel } }
+
+    /// Blocs reçus, blocs perdus (conversion impossible), niveau le plus fort.
+    var counts: (buffers: Int, dropped: Int, peak: Float) { lock.withLock { (buffers, dropped, peak) } }
 
     /// Vrai dès qu'un bloc audio non nul est arrivé.
     var heardSomething: Bool { lock.withLock { heard } }
@@ -168,7 +209,11 @@ private final class Capture: @unchecked Sendable {
         nonisolated(unsafe) var fed = false
         var error: NSError?
         lock.withLock {
-            guard let converter, converter.inputFormat == input.format else { return }
+            buffers += 1
+            guard let converter else {
+                dropped += 1
+                return
+            }
             _ = converter.convert(to: output, error: &error) { _, status in
                 if fed {
                     status.pointee = .noDataNow
@@ -183,6 +228,9 @@ private final class Capture: @unchecked Sendable {
                 samples.append(contentsOf: block)
                 lastLevel = block.isEmpty ? 0 : (block.reduce(0) { $0 + $1 * $1 } / Float(block.count)).squareRoot()
                 if lastLevel > 0 { heard = true }
+                peak = max(peak, lastLevel)
+            } else {
+                dropped += 1
             }
         }
     }

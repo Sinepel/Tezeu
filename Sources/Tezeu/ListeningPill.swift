@@ -54,6 +54,9 @@ private struct PillView: View {
                 if !state.compactPill { Text(L("Transcription…")) }
             } else {
                 LevelBars(level: state.level)
+                if state.debugMode {
+                    Text(String(format: "%.0f dB", Diagnostic.dB(state.level))).monospacedDigit()
+                }
                 if !state.compactPill {
                     Text(state.handsFree ? L("Appuie sur la touche pour finir · Échap annule") : L("Écoute…"))
                 }

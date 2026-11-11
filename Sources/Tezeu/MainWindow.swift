@@ -52,10 +52,53 @@ struct MainView: View {
                 .tabItem { Label(L("Fichier"), systemImage: "waveform") }
             SettingsTab(state: state)
                 .tabItem { Label(L("Réglages"), systemImage: "gearshape") }
+            if state.debugMode {
+                DiagnosticTab(state: state)
+                    .tabItem { Label(L("Diagnostic"), systemImage: "stethoscope") }
+            }
             AboutTab()
                 .tabItem { Label(L("À propos"), systemImage: "info.circle") }
         }
         .frame(minWidth: 520, minHeight: 460)
+    }
+}
+
+// MARK: - Diagnostic
+
+/// Mode debug : ce qui s'est passé à chaque dictée. Rien n'est écrit sur le disque.
+struct DiagnosticTab: View {
+    let state: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L("Fais une dictée, puis regarde ici ce qui s'est passé. Gardé en mémoire seulement, effacé en quittant l'app. « Copier » ne copie pas le texte dicté."))
+                .font(.caption).foregroundStyle(.secondary)
+            if state.diagnostics.isEmpty {
+                Spacer()
+                Text(L("Pas encore de dictée.")).foregroundStyle(.secondary).frame(maxWidth: .infinity)
+                Spacer()
+            } else {
+                List(state.diagnostics) { diag in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(diag.date, style: .time).font(.headline)
+                            Spacer()
+                            Button(L("Copier")) {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(diag.lines.joined(separator: "\n"), forType: .string)
+                            }
+                        }
+                        ForEach(diag.lines, id: \.self) { Text($0) }
+                            .font(.caption.monospaced())
+                        if let raw = diag.raw {
+                            Text(L("Texte brut du modèle : « %@ »", raw)).font(.caption).textSelection(.enabled)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+        }
+        .padding()
     }
 }
 
@@ -287,6 +330,12 @@ struct SettingsTab: View {
                     ForEach(Recorder.microphones(), id: \.id) { Text($0.name).tag(String?.some($0.id)) }
                 }
                 MicTest(state: state)
+            }
+
+            Section(L("Diagnostic")) {
+                Toggle(L("Mode debug"), isOn: Binding(get: { state.debugMode }, set: { state.debugMode = $0 }))
+                Text(L("Ajoute un onglet Diagnostic : micro utilisé, volume, durée, texte brut du modèle… pour comprendre une dictée ratée. Rien n'est écrit sur le disque."))
+                    .font(.caption).foregroundStyle(.secondary)
             }
 
             Section(L("Langue par app")) {

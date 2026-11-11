@@ -158,6 +158,12 @@ si elle est sur un disque externe, ce disque doit être branché à l'ouverture 
 
 L'interface est en français ou en anglais, selon la langue du Mac.
 
+Mode debug (Réglages > Diagnostic) : un onglet Diagnostic montre, pour chaque dictée, le micro
+réellement utilisé, son format, les blocs audio reçus et perdus, les relances du micro, la durée,
+le volume moyen et la crête comparés au seuil de silence, le modèle, la langue, le temps de transcription
+et le texte brut rendu par le modèle. Gardé en mémoire seulement (20 dernières dictées), effacé en quittant
+l'app. « Copier » copie les lignes techniques, jamais le texte dicté. La pastille affiche aussi le volume en dB.
+
 VoiceOver : les icônes et la jauge du micro sont décrites, et les résultats (« Collé », erreurs)
 sont lus à voix haute. Le début de l'écoute n'est pas annoncé : la voix de VoiceOver serait
 enregistrée par le micro. Le son de début l'indique.
