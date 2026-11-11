@@ -145,3 +145,8 @@
 "Ou %@ pour démarrer et arrêter." = "Or %@ to start and stop.";
 "Recoller la dernière dictée" = "Paste last dictation again";
 "Dernière dictée recollée" = "Last dictation pasted again";
+"Langue par app" = "Language per app";
+"Retirer" = "Remove";
+"Ajouter une app…" = "Add an app…";
+"Dans ces apps, Tézeu dicte dans la langue choisie ici, au lieu de la langue du réglage Dictée." = "In these apps, Tézeu dictates in the language chosen here instead of the Dictation setting.";
+"Choisis une app" = "Choose an app";

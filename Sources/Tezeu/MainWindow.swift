@@ -287,6 +287,27 @@ struct SettingsTab: View {
                 MicTest(state: state)
             }
 
+            Section(L("Langue par app")) {
+                ForEach(state.appLanguages.keys.sorted(), id: \.self) { id in
+                    HStack {
+                        AppName(bundleID: id)
+                        Spacer()
+                        Picker(L("Langue"), selection: Binding(get: { state.appLanguages[id] ?? .auto },
+                                                               set: { state.appLanguages[id] = $0 })) {
+                            ForEach(Language.allCases) { Text($0.label).tag($0) }
+                        }
+                        .labelsHidden().fixedSize()
+                        Button { state.appLanguages[id] = nil } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.borderless)
+                            .help(L("Retirer"))
+                            .accessibilityLabel(L("Retirer"))
+                    }
+                }
+                Button(L("Ajouter une app…")) { addApp() }
+                Text(L("Dans ces apps, Tézeu dicte dans la langue choisie ici, au lieu de la langue du réglage Dictée."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             Section(L("Texte")) {
                 Toggle(L("Commandes vocales"),
                        isOn: Binding(get: { state.voiceCommands }, set: { state.voiceCommands = $0 }))
@@ -367,6 +388,16 @@ struct SettingsTab: View {
             p.refresh()
             state.refreshLaunchAtLogin()
         }
+    }
+
+    private func addApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(filePath: "/Applications")
+        panel.message = L("Choisis une app")
+        guard panel.runModal() == .OK, let url = panel.url,
+              let id = Bundle(url: url)?.bundleIdentifier, state.appLanguages[id] == nil else { return }
+        state.appLanguages[id] = state.language == .english ? .french : .english
     }
 }
 
@@ -459,6 +490,22 @@ private struct Credit: View {
             if let url = URL(string: link) {
                 Link(link.replacingOccurrences(of: "https://", with: ""), destination: url).font(.caption)
             }
+        }
+    }
+}
+
+/// Icône et nom d'une app à partir de son identifiant.
+private struct AppName: View {
+    let bundleID: String
+
+    var body: some View {
+        let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)
+        HStack(spacing: 6) {
+            if let url {
+                Image(nsImage: NSWorkspace.shared.icon(forFile: url.path)).resizable().frame(width: 18, height: 18)
+                    .accessibilityHidden(true)
+            }
+            Text(url.map { FileManager.default.displayName(atPath: $0.path) } ?? bundleID)
         }
     }
 }

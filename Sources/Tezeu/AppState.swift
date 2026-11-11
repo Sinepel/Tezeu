@@ -62,6 +62,13 @@ final class AppState {
     var language: Language {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: "language") }
     }
+    /// Langue par app : identifiant de l'app (ex. com.apple.Terminal) → langue.
+    /// Prioritaire sur `language` quand cette app est au premier plan au début de la dictée.
+    var appLanguages: [String: Language] {
+        didSet { UserDefaults.standard.set(appLanguages.mapValues(\.rawValue), forKey: "appLanguages") }
+    }
+    /// Langue de la dictée en cours (celle de l'app au premier plan au début de l'écoute).
+    @ObservationIgnored private var listeningLanguage: Language?
     var model: WhisperModel {
         didSet {
             UserDefaults.standard.set(model.id, forKey: "model")
@@ -147,6 +154,8 @@ final class AppState {
         toggleShortcut = defaults.string(forKey: "toggleShortcut").flatMap(Shortcut.init(rawValue:)) ?? .controlOptionSpace
         pasteAgainShortcut = defaults.string(forKey: "pasteAgainShortcut").flatMap(Shortcut.init(rawValue:)) ?? .controlOptionV
         language = defaults.string(forKey: "language").flatMap(Language.init(rawValue:)) ?? .systemDefault
+        appLanguages = (defaults.dictionary(forKey: "appLanguages") as? [String: String] ?? [:])
+            .compactMapValues(Language.init(rawValue:))
         model = WhisperModel.all.first { $0.id == defaults.string(forKey: "model") } ?? .default
         microphone = defaults.string(forKey: "microphone")
         soundsEnabled = defaults.object(forKey: "sounds") as? Bool ?? true
@@ -363,6 +372,8 @@ final class AppState {
             return
         }
         handsFree = monitor?.isHandsFree ?? false
+        // Seul l'identifiant de l'app est lu, jamais son contenu.
+        listeningLanguage = NSWorkspace.shared.frontmostApplication?.bundleIdentifier.flatMap { appLanguages[$0] }
         level = 0
         activity = .listening
         if soundsEnabled { NSSound(named: "Tink")?.play() }
@@ -412,7 +423,7 @@ final class AppState {
         // Silences du début et de la fin enlevés : moins de phrases inventées par le modèle, et plus rapide.
         samples = SilenceTrim.trim(samples, threshold: silenceRMS, sampleRate: Transcriber.sampleRate)
         activity = .transcribing
-        let model = model, language = language
+        let model = model, language = listeningLanguage ?? language
         let prompt = Vocabulary.prompt(words: vocabulary), rules = Vocabulary.replacements(replacements)
         let keepCase = Set(Vocabulary.words(vocabulary))
         Task {
