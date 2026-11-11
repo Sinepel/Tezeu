@@ -100,10 +100,15 @@ Au premier lancement, un assistant s'ouvre en 3 étapes :
 2. Clique sur « Télécharger le modèle » (voir plus bas ce qui est téléchargé).
 3. Fais un essai dans le cadre prévu.
 
-Ensuite, deux façons de dicter :
+Ensuite, trois façons de dicter :
 - **Maintenir** : maintiens **Option droite**, parle, relâche. Le texte est collé dans l'app ouverte.
 - **Double appui** : appuie deux fois vite sur la touche, parle sans la tenir,
-  puis appuie une fois pour finir. Arrêt automatique au bout de 5 minutes.
+  puis appuie une fois pour finir.
+- **Raccourci mains libres** : **⌃⌥ Espace** (Contrôle + Option + Espace) démarre l'écoute,
+  le même raccourci l'arrête. À changer dans Réglages > Dictée (⌥ Espace, ⇧⌥ Espace, ⌃⌥ D, ou aucun).
+  La combinaison est réservée par Tézeu : elle ne tape rien dans l'app ouverte.
+
+En mode mains libres, arrêt automatique au bout de 5 minutes.
 
 **Échap** annule l'écoute en cours.
 

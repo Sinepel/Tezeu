@@ -136,3 +136,9 @@
 "Essai" = "Try it";
 "Clique dans le cadre. Maintiens %@, dis une phrase, relâche." = "Click in the box. Hold %@, say a sentence, release.";
 "Terminer" = "Done";
+"Aucun" = "None";
+"Espace" = "Space";
+"Raccourci mains libres" = "Hands-free shortcut";
+"Un appui démarre l'écoute, un appui de plus l'arrête. Pas besoin de tenir les touches." = "One press starts listening, another press stops it. No need to hold the keys.";
+"Ce raccourci est déjà pris par une autre app. Choisis-en un autre." = "Another app already uses this shortcut. Pick another one.";
+"Ou %@ pour démarrer et arrêter." = "Or %@ to start and stop.";

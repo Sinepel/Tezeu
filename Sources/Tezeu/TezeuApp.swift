@@ -65,6 +65,10 @@ struct MenuView: View {
             }
             Text(L("Maintiens %@ pour dicter, ou appuie deux fois.", state.hotKey.label))
                 .font(.caption).foregroundStyle(.secondary)
+            if state.toggleShortcut != .none, state.shortcutAvailable {
+                Text(L("Ou %@ pour démarrer et arrêter.", state.toggleShortcut.label))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
 
             Picker(L("Langue"), selection: Binding(get: { state.language }, set: { state.language = $0 })) {
                 ForEach(Language.allCases) { Text($0.label).tag($0) }

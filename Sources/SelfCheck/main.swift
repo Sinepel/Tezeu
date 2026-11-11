@@ -133,6 +133,16 @@ func gestureCheck() {
     g = G()
     _ = g.press(at: 0); _ = g.release(at: 0.1, otherKey: false); _ = g.press(at: 0.2); _ = g.release(at: 0.3, otherKey: false)
     check(g.escape() == .cancel(.escape) && g.press(at: 5) == .start, "Échap")
+    // Raccourci mains libres : un appui démarre, un appui arrête ; Échap et la touche marchent aussi.
+    g = G()
+    check(g.toggle() == .start && g.isHandsFree && g.toggle() == .stop && !g.isHandsFree, "raccourci : début et fin")
+    _ = g.toggle()
+    check(g.escape() == .cancel(.escape), "raccourci puis Échap")
+    _ = g.toggle()
+    check(g.press(at: 50) == .stop && g.release(at: 50.1, otherKey: false) == .none, "raccourci puis touche")
+    // Raccourci pendant un maintien : arrête l'écoute.
+    _ = g.press(at: 60)
+    check(g.toggle() == .stop && g.release(at: 61, otherKey: false) == .none, "raccourci pendant un maintien")
     // Remise à zéro (durée maximale) : le relâchement suivant est ignoré.
     g = G()
     _ = g.press(at: 0); g.reset()

@@ -93,6 +93,21 @@ public struct DictationGesture {
         }
     }
 
+    /// Raccourci mains libres : un appui démarre l'écoute, un appui de plus l'arrête.
+    public mutating func toggle() -> Action {
+        lastTapEnd = nil
+        switch phase {
+        case .idle:
+            phase = .handsFree
+            return .start
+        case .holding, .secondPress, .handsFree:
+            phase = .idle
+            return .stop
+        case .stopping:
+            return .none
+        }
+    }
+
     public mutating func escape() -> Action {
         lastTapEnd = nil
         switch phase {

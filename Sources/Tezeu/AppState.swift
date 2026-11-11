@@ -43,6 +43,15 @@ final class AppState {
             monitor?.key = hotKey
         }
     }
+    var toggleShortcut: ToggleShortcut {
+        didSet {
+            UserDefaults.standard.set(toggleShortcut.rawValue, forKey: "toggleShortcut")
+            monitor?.shortcut = toggleShortcut
+            shortcutAvailable = monitor?.shortcutAvailable ?? true
+        }
+    }
+    /// Faux si une autre app utilise déjà le raccourci mains libres.
+    private(set) var shortcutAvailable = true
     var language: Language {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: "language") }
     }
@@ -128,6 +137,7 @@ final class AppState {
         let defaults = UserDefaults.standard
         let savedKey = defaults.string(forKey: "hotKey").flatMap(HotKey.init(rawValue:)) ?? .rightOption
         hotKey = savedKey
+        toggleShortcut = defaults.string(forKey: "toggleShortcut").flatMap(ToggleShortcut.init(rawValue:)) ?? .controlOptionSpace
         language = defaults.string(forKey: "language").flatMap(Language.init(rawValue:)) ?? .systemDefault
         model = WhisperModel.all.first { $0.id == defaults.string(forKey: "model") } ?? .default
         microphone = defaults.string(forKey: "microphone")
@@ -165,6 +175,8 @@ final class AppState {
     private func startMonitoring() {
         let monitor = HotKeyMonitor(key: hotKey)
         monitor.onAction = { [weak self] action in self?.handle(action) }
+        monitor.shortcut = toggleShortcut
+        shortcutAvailable = monitor.shortcutAvailable
         self.monitor = monitor
         // Premier lancement, ou autorisation perdue : on ouvre la fenêtre pour guider.
         if case .error = status { MainWindow.shared.show(state: self) }

@@ -1,5 +1,6 @@
 import TezeuCore
 import AppKit
+import Carbon.HIToolbox
 
 /// Touche à maintenir pour dicter. Uniquement des touches de modification du côté droit,
 /// pour ne pas gêner la frappe normale.
@@ -34,6 +35,34 @@ enum HotKey: String, CaseIterable, Identifiable {
     }
 }
 
+/// Combinaison de touches pour l'écoute mains libres : un appui démarre, un appui de plus arrête.
+enum ToggleShortcut: String, CaseIterable, Identifiable {
+    case none, controlOptionSpace, optionSpace, shiftOptionSpace, controlOptionD
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .none: L("Aucun")
+        case .controlOptionSpace: "⌃⌥ " + L("Espace")
+        case .optionSpace: "⌥ " + L("Espace")
+        case .shiftOptionSpace: "⇧⌥ " + L("Espace")
+        case .controlOptionD: "⌃⌥ D"
+        }
+    }
+
+    /// Code de touche et modificateurs au format Carbon.
+    fileprivate var carbon: (keyCode: UInt32, modifiers: UInt32)? {
+        switch self {
+        case .none: nil
+        case .controlOptionSpace: (UInt32(kVK_Space), UInt32(controlKey | optionKey))
+        case .optionSpace: (UInt32(kVK_Space), UInt32(optionKey))
+        case .shiftOptionSpace: (UInt32(kVK_Space), UInt32(shiftKey | optionKey))
+        case .controlOptionD: (UInt32(kVK_ANSI_D), UInt32(controlKey | optionKey))
+        }
+    }
+}
+
 /// Détecte la touche choisie dans toutes les apps : maintien, double appui, Échap.
 /// Nécessite l'autorisation Accessibilité.
 @MainActor
@@ -46,7 +75,18 @@ final class HotKeyMonitor {
     /// Vrai pendant une écoute lancée par double appui.
     var isHandsFree: Bool { gesture.isHandsFree }
 
+    /// Raccourci mains libres. Enregistré auprès de macOS : la combinaison n'arrive pas
+    /// dans l'app active (pas d'espace tapée en plus).
+    var shortcut: ToggleShortcut = .none {
+        didSet { registerShortcut() }
+    }
+    /// Faux si macOS a refusé le raccourci (déjà pris par une autre app).
+    private(set) var shortcutAvailable = true
+
     private var gesture = DictationGesture()
+    private var hotKeyRef: EventHotKeyRef?
+    private var handlerRef: EventHandlerRef?
+    private var shortcutDown = false
     private var isDown = false
     private var otherKeyPressed = false
     private var monitors: [Any] = []
@@ -64,6 +104,35 @@ final class HotKeyMonitor {
                 return event
             },
         ].compactMap { $0 }
+    }
+
+    private func registerShortcut() {
+        if let hotKeyRef { UnregisterEventHotKey(hotKeyRef) }
+        hotKeyRef = nil
+        shortcutDown = false
+        shortcutAvailable = true
+        guard let carbon = shortcut.carbon else { return }
+
+        if handlerRef == nil {
+            var types = [EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
+                         EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased))]
+            InstallEventHandler(GetApplicationEventTarget(), { _, event, userData in
+                guard let event, let userData else { return OSStatus(eventNotHandledErr) }
+                let monitor = Unmanaged<HotKeyMonitor>.fromOpaque(userData).takeUnretainedValue()
+                let pressed = GetEventKind(event) == UInt32(kEventHotKeyPressed)
+                MainActor.assumeIsolated { monitor.shortcutEvent(pressed: pressed) }
+                return noErr
+            }, types.count, &types, Unmanaged.passUnretained(self).toOpaque(), &handlerRef)
+        }
+        let id = EventHotKeyID(signature: OSType(0x545A4555), id: 1) // « TZEU »
+        let status = RegisterEventHotKey(carbon.keyCode, carbon.modifiers, id, GetApplicationEventTarget(), 0, &hotKeyRef)
+        shortcutAvailable = status == noErr
+    }
+
+    private func shortcutEvent(pressed: Bool) {
+        // Touche gardée enfoncée : un seul déclenchement.
+        if pressed, !shortcutDown { emit(gesture.toggle()) }
+        shortcutDown = pressed
     }
 
     /// Oublie l'appui en cours (écoute arrêtée par l'app).
