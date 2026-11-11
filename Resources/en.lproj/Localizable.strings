@@ -150,3 +150,9 @@
 "Ajouter une app…" = "Add an app…";
 "Dans ces apps, Tézeu dicte dans la langue choisie ici, au lieu de la langue du réglage Dictée." = "In these apps, Tézeu dictates in the language chosen here instead of the Dictation setting.";
 "Choisis une app" = "Choose an app";
+"Autorisé" = "Allowed";
+"Non autorisé" = "Not allowed";
+"Étape %d, faite" = "Step %d, done";
+"Étape %d" = "Step %d";
+"Niveau du micro" = "Microphone level";
+"%d %%" = "%d %%";

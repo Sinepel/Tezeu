@@ -115,6 +115,7 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 12) {
                     Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 56, height: 56)
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading) {
                         Text(L("Bienvenue dans Tézeu")).font(.title2.bold())
                         Text(L("Trois étapes, et tu peux dicter partout."))
@@ -172,6 +173,7 @@ private struct Step<Content: View>: View {
             HStack {
                 Image(systemName: done ? "checkmark.circle.fill" : "\(number).circle")
                     .foregroundStyle(done ? .green : .secondary)
+                    .accessibilityLabel(done ? L("Étape %d, faite", number) : L("Étape %d", number))
                 Text(title).font(.headline)
             }
             content.padding(.leading, 26)
@@ -412,6 +414,7 @@ private struct MicTest: View {
                 Button(state.micTesting ? L("Arrêter le test") : L("Tester le micro")) { state.toggleMicTest() }
                 if state.micTesting {
                     ProgressView(value: min(1, max(0, (db + 70) / 60)))
+                        .accessibilityLabel(L("Niveau du micro"))
                     Text(db > state.silenceDB ? L("Voix entendue") : L("Silence"))
                         .font(.caption).frame(width: 90, alignment: .leading)
                 }
@@ -454,6 +457,7 @@ struct AboutTab: View {
         VStack(spacing: 10) {
             Image(nsImage: NSApp.applicationIconImage)
                 .resizable().frame(width: 96, height: 96)
+                .accessibilityHidden(true)
             Text(verbatim: "Tézeu").font(.title.bold())
             Text(L("Version %@", version)).foregroundStyle(.secondary)
             Text(L("Dictée 100 % locale. Ta voix et ton texte restent sur ton Mac."))

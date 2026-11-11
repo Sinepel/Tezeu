@@ -12,11 +12,14 @@ struct TezeuApp: App {
             MenuView(state: state)
         } label: {
             // Au repos : les lèvres de l'icône. Pendant le travail ou en cas d'erreur : un symbole d'état.
-            if state.status == .ready, let icon = MenuBarIcon.image {
-                Image(nsImage: icon)
-            } else {
-                Image(systemName: state.status.symbol)
+            Group {
+                if state.status == .ready, let icon = MenuBarIcon.image {
+                    Image(nsImage: icon)
+                } else {
+                    Image(systemName: state.status.symbol)
+                }
             }
+            .accessibilityLabel("Tézeu, " + state.status.label)
         }
         .menuBarExtraStyle(.window)
     }
@@ -123,6 +126,7 @@ struct PermissionRow: View {
         HStack {
             Image(systemName: granted ? "checkmark.circle.fill" : "xmark.circle")
                 .foregroundStyle(granted ? .green : .red)
+                .accessibilityLabel(granted ? L("Autorisé") : L("Non autorisé"))
             VStack(alignment: .leading) {
                 Text(title)
                 Text(detail).font(.caption).foregroundStyle(.secondary)

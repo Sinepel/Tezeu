@@ -15,7 +15,10 @@ final class AppState {
     let permissions = Permissions()
     /// État de travail (écoute, transcription…). Les problèmes d'autorisation passent avant.
     var activity: AppStatus = .ready {
-        didSet { pill.update(activity == .listening || activity == .transcribing ? self : nil) }
+        didSet {
+            pill.update(activity == .listening || activity == .transcribing ? self : nil)
+            if case .error(let message) = activity, activity != oldValue { Self.announce(message) }
+        }
     }
     /// Niveau sonore du micro pendant l'écoute, pour la pastille.
     private(set) var level: Float = 0
@@ -24,7 +27,9 @@ final class AppState {
     /// Dernières dictées, les plus récentes en premier. En mémoire seulement : effacées à la fermeture.
     var history: [HistoryEntry] = []
     /// Résumé du dernier appui.
-    var lastResult: String?
+    var lastResult: String? {
+        didSet { if let lastResult { Self.announce(lastResult) } }
+    }
     /// Dernier texte transcrit, gardé en mémoire seulement, pour l'afficher dans le panneau.
     var lastTranscript: String?
     /// Test du micro en cours (réglages) : le niveau s'affiche, rien n'est transcrit.
@@ -336,6 +341,14 @@ final class AppState {
         case .stop: finishListening(cancel: nil)
         case .cancel(let reason): finishListening(cancel: reason)
         }
+    }
+
+    /// Lit le message avec VoiceOver, s'il est allumé. Jamais au début de l'écoute :
+    /// la voix de VoiceOver serait enregistrée par le micro (le son de début suffit).
+    private static func announce(_ message: String) {
+        guard NSWorkspace.shared.isVoiceOverEnabled else { return }
+        NSAccessibility.post(element: NSApp as Any, notification: .announcementRequested,
+                             userInfo: [.announcement: message, .priority: NSAccessibilityPriorityLevel.high.rawValue])
     }
 
     /// Recolle la dernière dictée dans l'app active (si l'insertion avait raté, ou pour la répéter).

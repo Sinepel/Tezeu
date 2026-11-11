@@ -112,6 +112,13 @@ En mode mains libres, arrêt automatique au bout de 5 minutes.
 
 **Échap** annule l'écoute en cours.
 
+**⌃⌥ V** recolle la dernière dictée (si elle n'est pas arrivée au bon endroit). À changer dans les réglages.
+
+Moins de phrases inventées : Whisper invente parfois une phrase sur du silence
+(« Sous-titres réalisés par la communauté d'Amara.org », « Merci d'avoir regardé »).
+Tézeu coupe le silence au début et à la fin de l'enregistrement, enlève ces mentions connues,
+et ignore un résultat sans aucune lettre (« ... »).
+
 La fenêtre (menu de l'icône > « Ouvrir Tézeu… ») a quatre onglets :
 - **Historique** : les 50 dernières dictées, avec un bouton Copier. Gardé en mémoire seulement :
   rien n'est écrit sur le disque, tout est effacé quand tu quittes l'app.
@@ -121,6 +128,8 @@ La fenêtre (menu de l'icône > « Ouvrir Tézeu… ») a quatre onglets :
   - touche : Option, Commande ou Contrôle, côté droit ;
   - langue de dictée : français, anglais, espagnol, allemand, italien, portugais, néerlandais,
     ou détection automatique (moins fiable sur une phrase courte). Par défaut : la langue du Mac ;
+  - langue par app : par exemple anglais dans Terminal, français ailleurs. Tézeu lit seulement
+    le nom de l'app au premier plan au début de la dictée, jamais son contenu ;
   - micro : celui du Mac par défaut, ou un autre micro branché. Bouton « Tester le micro »,
     et seuil de silence réglable (à baisser si un micro faible est pris pour du silence) ;
   - sons au début et à la fin de l'écoute, et pastille en haut de l'écran (niveau du micro),
@@ -148,6 +157,10 @@ dans Réglages Système > Général > Ouverture. L'app est lancée depuis son em
 si elle est sur un disque externe, ce disque doit être branché à l'ouverture de session.
 
 L'interface est en français ou en anglais, selon la langue du Mac.
+
+VoiceOver : les icônes et la jauge du micro sont décrites, et les résultats (« Collé », erreurs)
+sont lus à voix haute. Le début de l'écoute n'est pas annoncé : la voix de VoiceOver serait
+enregistrée par le micro. Le son de début l'indique.
 
 L'icône montre l'état : lèvres (prêt), onde (écoute), « … » (transcription), triangle (erreur).
 

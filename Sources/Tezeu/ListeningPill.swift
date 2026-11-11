@@ -87,5 +87,8 @@ private struct LevelBars: View {
         }
         .frame(height: 20)
         .animation(.easeOut(duration: 0.08), value: value)
+        .accessibilityElement()
+        .accessibilityLabel(L("Niveau du micro"))
+        .accessibilityValue(L("%d %%", Int(value * 100)))
     }
 }
