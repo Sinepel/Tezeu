@@ -54,6 +54,7 @@ public actor Transcriber {
         params.no_timestamps = true
         params.no_context = true
         params.suppress_blank = true
+        params.suppress_nst = true // pas de « [Musique] », « ♪ »…
 
         // whisper.cpp attend au moins 1 s d'audio : on complète avec du silence.
         var audio = samples

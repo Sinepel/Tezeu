@@ -249,12 +249,20 @@ struct SettingsTab: View {
                     .font(.caption).foregroundStyle(.secondary)
                 Picker(L("Raccourci mains libres"),
                        selection: Binding(get: { state.toggleShortcut }, set: { state.toggleShortcut = $0 })) {
-                    ForEach(ToggleShortcut.allCases) { Text($0.label).tag($0) }
+                    ForEach(Shortcut.toggleChoices) { Text($0.label).tag($0) }
                 }
                 if state.shortcutAvailable {
                     Text(L("Un appui démarre l'écoute, un appui de plus l'arrête. Pas besoin de tenir les touches."))
                         .font(.caption).foregroundStyle(.secondary)
                 } else {
+                    Text(L("Ce raccourci est déjà pris par une autre app. Choisis-en un autre."))
+                        .font(.caption).foregroundStyle(.red)
+                }
+                Picker(L("Recoller la dernière dictée"),
+                       selection: Binding(get: { state.pasteAgainShortcut }, set: { state.pasteAgainShortcut = $0 })) {
+                    ForEach(Shortcut.pasteAgainChoices) { Text($0.label).tag($0) }
+                }
+                if !state.pasteAgainAvailable {
                     Text(L("Ce raccourci est déjà pris par une autre app. Choisis-en un autre."))
                         .font(.caption).foregroundStyle(.red)
                 }

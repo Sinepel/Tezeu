@@ -177,6 +177,25 @@ func voiceCommandsCheck() {
 }
 
 /// Vérifie l'espace et la majuscule automatiques selon le texte avant le curseur.
+func hallucinationsCheck() {
+    let H = Hallucinations.clean
+    check(H("Sous-titres réalisés par la communauté d'Amara.org") == "", "mention de sous-titres seule")
+    check(H("Bonjour à tous. Sous-titres réalisés par la communauté d'Amara.org") == "Bonjour à tous.", "mention en fin de texte")
+    check(H(" Merci d'avoir regardé ! ") == "" && H("Thanks for watching!") == "", "phrase inventée entière")
+    check(H("Merci d'avoir regardé le document, je reviens vers toi.") == "Merci d'avoir regardé le document, je reviens vers toi.",
+          "vraie phrase gardée")
+    check(H("Ajoute des sous-titres à la vidéo.") == "Ajoute des sous-titres à la vidéo.", "mot « sous-titres » gardé")
+    check(H("Merci.") == "Merci.", "« Merci. » gardé")
+    check(H("...") == "" && H(" … ") == "" && H("42.") == "42.", "que de la ponctuation")
+
+    // 1 s de silence, 0,5 s de son, 1 s de silence (16 kHz) : il reste le son et 0,25 s de marge de chaque côté.
+    let audio = [Float](repeating: 0, count: 16_000) + [Float](repeating: 0.1, count: 8_000) + [Float](repeating: 0, count: 16_000)
+    let trimmed = SilenceTrim.trim(audio, threshold: 0.01, sampleRate: 16_000)
+    check(abs(trimmed.count - 16_000) <= 320, "silence enlevé (\(trimmed.count) échantillons)")
+    check(SilenceTrim.trim([Float](repeating: 0, count: 1000), threshold: 0.01, sampleRate: 16_000).count == 1000, "tout silence : inchangé")
+    print("OK  phrases inventées et silences")
+}
+
 func autoSpacingCheck() {
     check(AutoSpacing.fit("Bonjour.", after: nil) == "Bonjour.", "contexte inconnu")
     check(AutoSpacing.fit("bonjour.", after: "") == "Bonjour.", "début de champ")
@@ -200,6 +219,7 @@ case "clipboard", nil:
     vocabularyCheck()
     voiceCommandsCheck()
     autoSpacingCheck()
+    hallucinationsCheck()
     localizationCheck()
 default:
     print("""

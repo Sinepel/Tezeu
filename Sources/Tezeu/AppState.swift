@@ -43,15 +43,22 @@ final class AppState {
             monitor?.key = hotKey
         }
     }
-    var toggleShortcut: ToggleShortcut {
+    var toggleShortcut: Shortcut {
         didSet {
             UserDefaults.standard.set(toggleShortcut.rawValue, forKey: "toggleShortcut")
-            monitor?.shortcut = toggleShortcut
-            shortcutAvailable = monitor?.shortcutAvailable ?? true
+            shortcutAvailable = monitor?.register(toggleShortcut, for: .toggle) ?? true
         }
     }
     /// Faux si une autre app utilise déjà le raccourci mains libres.
     private(set) var shortcutAvailable = true
+    var pasteAgainShortcut: Shortcut {
+        didSet {
+            UserDefaults.standard.set(pasteAgainShortcut.rawValue, forKey: "pasteAgainShortcut")
+            pasteAgainAvailable = monitor?.register(pasteAgainShortcut, for: .pasteAgain) ?? true
+        }
+    }
+    /// Faux si une autre app utilise déjà le raccourci pour recoller.
+    private(set) var pasteAgainAvailable = true
     var language: Language {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: "language") }
     }
@@ -137,7 +144,8 @@ final class AppState {
         let defaults = UserDefaults.standard
         let savedKey = defaults.string(forKey: "hotKey").flatMap(HotKey.init(rawValue:)) ?? .rightOption
         hotKey = savedKey
-        toggleShortcut = defaults.string(forKey: "toggleShortcut").flatMap(ToggleShortcut.init(rawValue:)) ?? .controlOptionSpace
+        toggleShortcut = defaults.string(forKey: "toggleShortcut").flatMap(Shortcut.init(rawValue:)) ?? .controlOptionSpace
+        pasteAgainShortcut = defaults.string(forKey: "pasteAgainShortcut").flatMap(Shortcut.init(rawValue:)) ?? .controlOptionV
         language = defaults.string(forKey: "language").flatMap(Language.init(rawValue:)) ?? .systemDefault
         model = WhisperModel.all.first { $0.id == defaults.string(forKey: "model") } ?? .default
         microphone = defaults.string(forKey: "microphone")
@@ -175,8 +183,9 @@ final class AppState {
     private func startMonitoring() {
         let monitor = HotKeyMonitor(key: hotKey)
         monitor.onAction = { [weak self] action in self?.handle(action) }
-        monitor.shortcut = toggleShortcut
-        shortcutAvailable = monitor.shortcutAvailable
+        monitor.onPasteAgain = { [weak self] in self?.pasteAgain() }
+        shortcutAvailable = monitor.register(toggleShortcut, for: .toggle)
+        pasteAgainAvailable = monitor.register(pasteAgainShortcut, for: .pasteAgain)
         self.monitor = monitor
         // Premier lancement, ou autorisation perdue : on ouvre la fenêtre pour guider.
         if case .error = status { MainWindow.shared.show(state: self) }
@@ -243,7 +252,7 @@ final class AppState {
                 let raw = try await Self.transcriber.transcribe(samples, modelURL: model.localURL,
                                                                 language: language, prompt: prompt)
                 samples.removeAll()
-                fileText = Vocabulary.apply(rules, to: raw)
+                fileText = Vocabulary.apply(rules, to: Hallucinations.clean(raw))
                 if fileText.isEmpty { fileError = L("Rien reconnu") }
             } catch {
                 fileError = error.localizedDescription
@@ -320,6 +329,25 @@ final class AppState {
         }
     }
 
+    /// Recolle la dernière dictée dans l'app active (si l'insertion avait raté, ou pour la répéter).
+    private func pasteAgain() {
+        guard let text = history.first?.text, activity != .listening, activity != .transcribing else {
+            NSSound.beep()
+            return
+        }
+        Task {
+            var text = text
+            if autoSpacing {
+                text = AutoSpacing.fit(text, after: Paster.textBeforeCursor(), keepCase: Set(Vocabulary.words(vocabulary)))
+            }
+            let outcome = await Paster.insert(text, method: insertMethod, restoreDelay: restoreDelay)
+            lastResult = switch outcome {
+            case .pasted: L("Dernière dictée recollée")
+            case .keptInClipboard(let reason): L("%@. Texte gardé dans le presse-papiers : colle-le avec ⌘V.", reason)
+            }
+        }
+    }
+
     private func startListening() {
         // Une erreur de dictée précédente n'empêche pas de réessayer ; un problème d'autorisation ou de modèle, si.
         guard permissions.problem == nil, installedModels.contains(model.id), !micTesting,
@@ -381,6 +409,8 @@ final class AppState {
         }
 
         if soundsEnabled { NSSound(named: "Pop")?.play() }
+        // Silences du début et de la fin enlevés : moins de phrases inventées par le modèle, et plus rapide.
+        samples = SilenceTrim.trim(samples, threshold: silenceRMS, sampleRate: Transcriber.sampleRate)
         activity = .transcribing
         let model = model, language = language
         let prompt = Vocabulary.prompt(words: vocabulary), rules = Vocabulary.replacements(replacements)
@@ -389,7 +419,7 @@ final class AppState {
             do {
                 let raw = try await Self.transcriber.transcribe(samples, modelURL: model.localURL, language: language, prompt: prompt)
                 samples.removeAll() // l'audio n'est plus nécessaire
-                var text = Vocabulary.apply(rules, to: raw)
+                var text = Vocabulary.apply(rules, to: Hallucinations.clean(raw))
                 if voiceCommands { text = VoiceCommands.apply(text, language: language) }
                 text = text.trimmingCharacters(in: .whitespaces)
                 lastTranscript = text
