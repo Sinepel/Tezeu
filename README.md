@@ -131,9 +131,11 @@ La fenêtre (menu de l'icône > « Ouvrir Tézeu… ») a quatre onglets :
   - espace et majuscule automatiques, selon le texte juste avant le curseur (si l'app le donne) ;
   - insertion : coller (rapide), ou taper le texte (plus lent, sans toucher au presse-papiers,
     pour les apps qui bloquent ⌘V). Délai de remise du presse-papiers réglable ;
-  - modèle : Équilibré (574 Mo), Léger (190 Mo) ou Très léger (60 Mo), si ton Mac est lent.
-    Option pour le préparer dès le lancement (première dictée plus rapide, environ 800 Mo de mémoire
-    pour Équilibré). Bouton pour supprimer un modèle du disque ;
+  - modèle : Précis (1,08 Go), Équilibré (574 Mo), Léger (190 Mo) ou Très léger (60 Mo), si ton Mac est lent.
+    Précis fait un peu moins d'erreurs (noms techniques, accords), mais il est environ 3 fois plus lent
+    et prend environ 1,5 Go de mémoire, contre 800 Mo pour Équilibré. Pour un Mac avec 16 Go ou plus.
+    Option pour préparer le modèle dès le lancement (première dictée plus rapide).
+    Bouton pour supprimer un modèle du disque ;
   - vocabulaire : mots à mieux reconnaître (noms propres, jargon), et remplacements
     (`tezeu = Tézeu`, un par ligne ; rien après `=` supprime le mot) ;
   - autorisations, et lancement à l'ouverture de session.

@@ -9,6 +9,8 @@ public struct WhisperModel: Identifiable, Hashable, Sendable {
     public let sha256: String
 
     public static let all = [
+        WhisperModel(id: "ggml-large-v3-q5_0.bin", label: L("Précis (large-v3)"), bytes: 1_081_140_203,
+                     sha256: "d75795ecff3f83b5faa89d1900604ad8c780abd5739fae406de19f23ecd98ad1"),
         WhisperModel(id: "ggml-large-v3-turbo-q5_0.bin", label: L("Équilibré (large-v3-turbo)"), bytes: 574_041_195,
                      sha256: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2"),
         WhisperModel(id: "ggml-small-q5_1.bin", label: L("Léger (small)"), bytes: 190_085_487,
@@ -16,7 +18,8 @@ public struct WhisperModel: Identifiable, Hashable, Sendable {
         WhisperModel(id: "ggml-base-q5_1.bin", label: L("Très léger (base)"), bytes: 59_707_625,
                      sha256: "422f1ae452ade6f30a004d7e5c6a43195e4433bc370bf23fac9cc591f01a8898"),
     ]
-    public static let `default` = all[0]
+    /// Équilibré : presque aussi précis que Précis, trois fois plus rapide, deux fois moins de mémoire.
+    public static let `default` = all.first { $0.id == "ggml-large-v3-turbo-q5_0.bin" }!
 
     public static let sourceLabel = "huggingface.co/ggerganov/whisper.cpp"
     private static let commit = "5359861c739e955e79d9a303bcbc70fb988958b1"

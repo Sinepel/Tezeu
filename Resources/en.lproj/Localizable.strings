@@ -25,6 +25,7 @@
 /* Modèles */
 "Équilibré (large-v3-turbo)" = "Balanced (large-v3-turbo)";
 "Léger (small)" = "Light (small)";
+"Précis (large-v3)" = "Accurate (large-v3)";
 "Très léger (base)" = "Very light (base)";
 "Source : %@\nTaille : %@. L'empreinte sera vérifiée." = "Source: %@\nSize: %@. The checksum will be verified.";
 "Télécharger le modèle (%@)" = "Download the model (%@)";
